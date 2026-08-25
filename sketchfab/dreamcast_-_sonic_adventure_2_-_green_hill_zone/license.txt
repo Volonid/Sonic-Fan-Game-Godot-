@@ -1,0 +1,11 @@
+Model Information:
+* title:	Dreamcast - Sonic Adventure 2 - Green Hill Zone
+* source:	https://sketchfab.com/3d-models/dreamcast-sonic-adventure-2-green-hill-zone-eb9136cceaaa4e68b98fb6fdfbf7e102
+* author:	Pac-YT (https://sketchfab.com/karolkokrystalik)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Dreamcast - Sonic Adventure 2 - Green Hill Zone" (https://sketchfab.com/3d-models/dreamcast-sonic-adventure-2-green-hill-zone-eb9136cceaaa4e68b98fb6fdfbf7e102) by Pac-YT (https://sketchfab.com/karolkokrystalik) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
