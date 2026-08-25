@@ -1,5 +1,5 @@
-tool
-extends WindowDialog
+@tool
+extends Window
 
 const SafeData = preload("res://addons/sketchfab/SafeData.gd")
 const Utils = preload("res://addons/sketchfab/Utils.gd")
@@ -9,16 +9,16 @@ const Api = preload("res://addons/sketchfab/Api.gd")
 var api = Api.new()
 var downloader
 
-onready var label_model = find_node("Model")
-onready var label_user = find_node("User")
-onready var image = find_node("Image")
+@onready var label_model = find_child("Model")
+@onready var label_user = find_child("User")
+@onready var image = find_child("Image")
 
-onready var info = find_node("Info")
-onready var license = find_node("License")
+@onready var info = find_child("Info")
+@onready var license = find_child("License")
 
-onready var download = find_node("Download")
-onready var progress = find_node("ProgressBar")
-onready var size_label = find_node("Size")
+@onready var download = find_child("Download")
+@onready var progress = find_child("ProgressBar")
+@onready var size_label = find_child("Size")
 
 var uid
 var imported_path
@@ -32,8 +32,8 @@ func set_uid(uid):
 func _ready():
 	$All.visible = false
 	var editor_scale = get_tree().get_meta("__editor_scale")
-	image.rect_min_size *= editor_scale
-	rect_size *= editor_scale
+	image.custom_minimum_size *= editor_scale
+	size *= editor_scale
 
 func _on_about_to_show():
 	if !uid:
@@ -45,7 +45,7 @@ func _on_about_to_show():
 	if Api.get_token():
 		# Request download link
 
-		var result = yield(api.request_download(uid), "completed")
+		var result = await api.request_download(uid).completed
 		if !get_tree():
 			return
 
@@ -77,7 +77,7 @@ func _on_about_to_show():
 
 	# Populate other information
 
-	var data = yield(api.get_model_detail(uid), "completed")
+	var data = await api.get_model_detail(uid).completed
 	if typeof(data) != TYPE_DICTIONARY:
 		hide()
 		return
@@ -137,7 +137,7 @@ func _on_Download_pressed():
 
 	downloader = Requestor.new(host, true)
 
-	var dir = Directory.new()
+	var dir = DirAccess.new()
 	dir.make_dir("res://sketchfab")
 
 	var file_regex = RegEx.new()
@@ -145,9 +145,9 @@ func _on_Download_pressed():
 	var filename = file_regex.search(download_url).get_string()
 	var zip_path = "res://sketchfab/%s" % filename
 
-	downloader.connect("download_progressed", self, "_on_download_progressed")
+	downloader.connect("download_progressed", Callable(self, "_on_download_progressed"))
 	downloader.request(path, null, { "download_to": zip_path })
-	var result = yield(downloader, "completed")
+	var result = await downloader.completed
 	if !result:
 		return
 	downloader.term()
@@ -166,7 +166,7 @@ func _on_Download_pressed():
 
 	progress.percent_visible = false
 	size_label.text = "    Model downloaded! Unpacking..."
-	yield(get_tree(), "idle_frame")
+	await get_tree().idle_frame
 	if !get_tree():
 		return
 
@@ -188,7 +188,7 @@ func _on_Download_pressed():
 	var ei = get_tree().get_meta("__editor_interface")
 	ei.get_resource_filesystem().scan()
 	while ei.get_resource_filesystem().is_scanning():
-		yield(get_tree(), "idle_frame")
+		await get_tree().idle_frame
 		if !get_tree():
 			return
 	ei.select_file(imported_path)

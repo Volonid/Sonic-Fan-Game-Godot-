@@ -1,4 +1,4 @@
-tool
+@tool
 extends Object
 
 const LOG_LEVEL = 1
@@ -8,7 +8,7 @@ signal download_progressed
 signal completed
 
 class Result:
-	var ok setget , _is_ok
+	var ok : get = _is_ok
 	var code
 	var data
 
@@ -49,7 +49,7 @@ func cancel():
 		canceled = true
 	else:
 		call_deferred("emit_signal", "completed", null)
-	yield(self, "completed")
+	await self.completed
 
 func term():
 	if LOG_LEVEL >= 2:
@@ -59,7 +59,7 @@ func term():
 
 func request(path, payload = null, options = DEFAULT_OPTIONS):
 	while busy && !terminated:
-		yield(Engine.get_main_loop(), "idle_frame")
+		await Engine.get_main_loop().idle_frame
 		if terminated:
 			if LOG_LEVEL >= 2:
 				print("TERMINATE HONORED")
@@ -83,7 +83,7 @@ func request(path, payload = null, options = DEFAULT_OPTIONS):
 		if http.get_status() != HTTPClient.STATUS_CONNECTED:
 			http.connect_to_host(hostname, -1, use_ssl, false)
 			while true:
-				yield(Engine.get_main_loop(), "idle_frame")
+				await Engine.get_main_loop().idle_frame
 				if terminated:
 					if LOG_LEVEL >= 2:
 						print("TERMINATE HONORED")
@@ -121,7 +121,7 @@ func request(path, payload = null, options = DEFAULT_OPTIONS):
 				uri += "&" + _dict_to_query_string(payload)
 			elif encoding == "json":
 				headers.append("Content-Type: application/json")
-				encoded_payload = to_json(payload)
+				encoded_payload = JSON.new().stringify(payload)
 			elif encoding == "form":
 				headers.append("Content-Type: application/x-www-form-urlencoded")
 				encoded_payload = _dict_to_query_string(payload)
@@ -162,7 +162,7 @@ func request(path, payload = null, options = DEFAULT_OPTIONS):
 			pass
 
 	while true:
-		yield(Engine.get_main_loop(), "idle_frame")
+		await Engine.get_main_loop().idle_frame
 		if terminated:
 			if LOG_LEVEL >= 2:
 				print("TERMINATE HONORED")
@@ -221,7 +221,7 @@ func request(path, payload = null, options = DEFAULT_OPTIONS):
 			emit_signal("completed", Result.new(-1))
 			return
 
-	var last_yield = OS.get_ticks_msec()
+	var last_yield = Time.get_ticks_msec()
 
 	while status == HTTPClient.STATUS_BODY:
 		var chunk = http.read_response_body_chunk()
@@ -234,9 +234,9 @@ func request(path, payload = null, options = DEFAULT_OPTIONS):
 			response_body = response_body if response_body else ""
 			response_body += chunk.get_string_from_utf8()
 
-		var time = OS.get_ticks_msec()
+		var time = Time.get_ticks_msec()
 		if time - last_yield > YIELD_PERIOD_MS:
-			yield(Engine.get_main_loop(), "idle_frame")
+			await Engine.get_main_loop().idle_frame
 			last_yield = time
 			if terminated:
 				if file:
@@ -267,7 +267,7 @@ func request(path, payload = null, options = DEFAULT_OPTIONS):
 			emit_signal("completed", Result.new(-1))
 			return
 
-	yield(Engine.get_main_loop(), "idle_frame")
+	await Engine.get_main_loop().idle_frame
 	if terminated:
 		if file:
 			file.close()
@@ -300,7 +300,9 @@ func request(path, payload = null, options = DEFAULT_OPTIONS):
 	if file:
 		data = bytes
 	else:
-		data = parse_json(response_body) if response_body else null
+		var test_json_conv = JSON.new()
+		test_json_conv.parse(response_body) if response_body else null
+		data = test_json_conv.get_data()
 	emit_signal("completed", Result.new(response_code, data))
 
 func _get_option(options, key):
@@ -316,8 +318,8 @@ func _dict_to_query_string(dictionary):
 		var value = dictionary[key]
 		if typeof(value) == TYPE_ARRAY:
 			for v in value:
-				qs += "&%s=%s" % [key.percent_encode(), v.percent_encode()]
+				qs += "&%s=%s" % [key.uri_encode(), v.uri_encode()]
 		else:
-			qs += "&%s=%s" % [key.percent_encode(), String(value).percent_encode()]
+			qs += "&%s=%s" % [key.uri_encode(), String(value).uri_encode()]
 	qs.erase(0, 1)
 	return qs

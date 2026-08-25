@@ -1,4 +1,4 @@
-tool
+@tool
 # Independent quad tree designed to handle LOD
 
 class Quad:
@@ -26,9 +26,9 @@ var _max_depth := 0
 var _base_size := 16
 var _split_scale := 2.0
 
-var _make_func : FuncRef = null
-var _recycle_func : FuncRef = null
-var _vertical_bounds_func : FuncRef = null
+var _make()_func : FuncRef = null
+var _recycle()_func : FuncRef = null
+var _vertical_bounds()_func : FuncRef = null
 
 
 func set_callbacks(make_cb: FuncRef, recycle_cb: FuncRef, vbounds_cb: FuncRef):

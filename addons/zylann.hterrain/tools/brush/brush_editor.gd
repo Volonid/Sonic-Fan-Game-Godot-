@@ -1,4 +1,4 @@
-tool
+@tool
 extends Control
 
 const Brush = preload("./terrain_painter.gd")
@@ -9,41 +9,41 @@ const Logger = preload("../../util/logger.gd")
 const SHAPES_DIR = "addons/zylann.hterrain/tools/brush/shapes"
 const DEFAULT_BRUSH = "round2.exr"
 
-onready var _size_slider := $GridContainer/BrushSizeControl/Slider as Slider
-onready var _size_value_label := $GridContainer/BrushSizeControl/Label as Label
+@onready var _size_slider := $GridContainer/BrushSizeControl/Slider as Slider
+@onready var _size_value_label := $GridContainer/BrushSizeControl/Label as Label
 #onready var _size_label = _params_container.get_node("BrushSizeLabel")
 
-onready var _opacity_slider = $GridContainer/BrushOpacityControl/Slider
-onready var _opacity_value_label = $GridContainer/BrushOpacityControl/Label
-onready var _opacity_control = $GridContainer/BrushOpacityControl
-onready var _opacity_label = $GridContainer/BrushOpacityLabel
+@onready var _opacity_slider = $GridContainer/BrushOpacityControl/Slider
+@onready var _opacity_value_label = $GridContainer/BrushOpacityControl/Label
+@onready var _opacity_control = $GridContainer/BrushOpacityControl
+@onready var _opacity_label = $GridContainer/BrushOpacityLabel
 
-onready var _flatten_height_container = $GridContainer/HB
-onready var _flatten_height_box = $GridContainer/HB/FlattenHeightControl
-onready var _flatten_height_label = $GridContainer/FlattenHeightLabel
-onready var _flatten_height_pick_button = $GridContainer/HB/FlattenHeightPickButton
+@onready var _flatten_height_container = $GridContainer/HB
+@onready var _flatten_height_box = $GridContainer/HB/FlattenHeightControl
+@onready var _flatten_height_label = $GridContainer/FlattenHeightLabel
+@onready var _flatten_height_pick_button = $GridContainer/HB/FlattenHeightPickButton
 
-onready var _color_picker = $GridContainer/ColorPickerButton
-onready var _color_label = $GridContainer/ColorLabel
+@onready var _color_picker = $GridContainer/ColorPickerButton
+@onready var _color_label = $GridContainer/ColorLabel
 
-onready var _density_slider = $GridContainer/DensitySlider
-onready var _density_label = $GridContainer/DensityLabel
+@onready var _density_slider = $GridContainer/DensitySlider
+@onready var _density_label = $GridContainer/DensityLabel
 
-onready var _holes_label = $GridContainer/HoleLabel
-onready var _holes_checkbox = $GridContainer/HoleCheckbox
+@onready var _holes_label = $GridContainer/HoleLabel
+@onready var _holes_checkbox = $GridContainer/HoleCheckbox
 
-onready var _slope_limit_label = $GridContainer/SlopeLimitLabel
-onready var _slope_limit_control = $GridContainer/SlopeLimit
+@onready var _slope_limit_label = $GridContainer/SlopeLimitLabel
+@onready var _slope_limit_control = $GridContainer/SlopeLimit
 
-onready var _shape_texture_rect = get_node("BrushShapeButton/TextureRect")
+@onready var _shape_texture_rect = get_node("BrushShapeButton/TextureRect")
 
 var _brush : Brush
 var _load_image_dialog = null
 var _logger = Logger.get_for(self)
 
 # TODO This is an ugly workaround for https://github.com/godotengine/godot/issues/19479
-onready var _temp_node = get_node("Temp")
-onready var _grid_container = get_node("GridContainer")
+@onready var _temp_node = get_node("Temp")
+@onready var _grid_container = get_node("GridContainer")
 func _set_visibility_of(node: Control, v: bool):
 	node.get_parent().remove_child(node)
 	if v:
@@ -54,13 +54,13 @@ func _set_visibility_of(node: Control, v: bool):
 
 
 func _ready():
-	_size_slider.connect("value_changed", self, "_on_size_slider_value_changed")
-	_opacity_slider.connect("value_changed", self, "_on_opacity_slider_value_changed")
-	_flatten_height_box.connect("value_changed", self, "_on_flatten_height_box_value_changed")
-	_color_picker.connect("color_changed", self, "_on_color_picker_color_changed")
-	_density_slider.connect("value_changed", self, "_on_density_slider_changed")
-	_holes_checkbox.connect("toggled", self, "_on_holes_checkbox_toggled")
-	_slope_limit_control.connect("changed", self, "_on_slope_limit_changed")
+	_size_slider.connect("value_changed", Callable(self, "_on_size_slider_value_changed"))
+	_opacity_slider.connect("value_changed", Callable(self, "_on_opacity_slider_value_changed"))
+	_flatten_height_box.connect("value_changed", Callable(self, "_on_flatten_height_box_value_changed"))
+	_color_picker.connect("color_changed", Callable(self, "_on_color_picker_color_changed"))
+	_density_slider.connect("value_changed", Callable(self, "_on_density_slider_changed"))
+	_holes_checkbox.connect("toggled", Callable(self, "_on_holes_checkbox_toggled"))
+	_slope_limit_control.connect("changed", Callable(self, "_on_slope_limit_changed"))
 	
 	_size_slider.max_value = 200
 	#if NativeFactory.is_native_available():
@@ -72,12 +72,12 @@ func _ready():
 func setup_dialogs(base_control: Control):
 	assert(_load_image_dialog == null)
 	_load_image_dialog = EditorFileDialog.new()
-	_load_image_dialog.mode = EditorFileDialog.MODE_OPEN_FILE
+	_load_image_dialog.mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 	_load_image_dialog.add_filter("*.exr ; EXR files")
 	_load_image_dialog.resizable = true
 	_load_image_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
 	_load_image_dialog.current_dir = SHAPES_DIR
-	_load_image_dialog.connect("file_selected", self, "_on_LoadImageDialog_file_selected")
+	_load_image_dialog.connect("file_selected", Callable(self, "_on_LoadImageDialog_file_selected"))
 	base_control.add_child(_load_image_dialog)
 
 
@@ -98,7 +98,7 @@ func _exit_tree():
 
 func set_brush(brush: Brush):
 	if _brush != null:
-		_brush.disconnect("changed", self, "_on_brush_changed")
+		_brush.disconnect("changed", Callable(self, "_on_brush_changed"))
 	
 	_brush = brush
 
@@ -114,21 +114,21 @@ func set_brush(brush: Brush):
 		_flatten_height_box.value = brush.get_flatten_height()
 		_color_picker.get_picker().color = brush.get_color()
 		_density_slider.value = brush.get_detail_density()
-		_holes_checkbox.pressed = not brush.get_mask_flag()
+		_holes_checkbox.button_pressed = not brush.get_mask_flag()
 		
-		var low = rad2deg(brush.get_slope_limit_low_angle())
-		var high = rad2deg(brush.get_slope_limit_high_angle())
+		var low = rad_to_deg(brush.get_slope_limit_low_angle())
+		var high = rad_to_deg(brush.get_slope_limit_high_angle())
 		_slope_limit_control.set_values(low, high)
 
 		set_display_mode(brush.get_mode())
 		_set_brush_shape_from_file(SHAPES_DIR.plus_file(DEFAULT_BRUSH))
 		
-		_brush.connect("changed", self, "_on_brush_properties_changed")
+		_brush.connect("changed", Callable(self, "_on_brush_properties_changed"))
 
 
 func _on_brush_properties_changed():
 	_flatten_height_box.value = _brush.get_flatten_height()
-	_flatten_height_pick_button.pressed = false
+	_flatten_height_pick_button.button_pressed = false
 
 
 func set_display_mode(mode: int):
@@ -157,7 +157,7 @@ func set_display_mode(mode: int):
 	_set_visibility_of(_slope_limit_label, show_slope_limit)
 	_set_visibility_of(_slope_limit_control, show_slope_limit)
 
-	_flatten_height_pick_button.pressed = false
+	_flatten_height_pick_button.button_pressed = false
 
 
 func _on_size_slider_value_changed(v: float):
@@ -206,11 +206,11 @@ func _set_brush_shape_from_file(path: String):
 	var err := im.load(path)
 	if err != OK:
 		_logger.error("Could not load image at '{0}', error {1}" \
-			.format([path, Errors.get_message(err)]))
+			super.format([path, Errors.get_message(err)]))
 		return
 
 	var tex := ImageTexture.new()
-	tex.create_from_image(im, Texture.FLAG_FILTER)
+	tex.create_from_image(im) #,Texture2D.FLAG_FILTER
 
 	if _brush != null:
 		var im2 := im
@@ -231,6 +231,6 @@ func _on_FlattenHeightPickButton_pressed():
 
 
 func _on_slope_limit_changed():
-	var low = deg2rad(_slope_limit_control.get_low_value())
-	var high = deg2rad(_slope_limit_control.get_high_value())
+	var low = deg_to_rad(_slope_limit_control.get_low_value())
+	var high = deg_to_rad(_slope_limit_control.get_high_value())
 	_brush.set_slope_limit_angles(low, high)

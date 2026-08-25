@@ -1,8 +1,8 @@
+@tool
 
 # Holds data of the terrain.
 # This is mostly a set of textures using specific formats, some precalculated, and metadata.
 
-tool
 extends Resource
 
 const Grid = preload("./util/grid.gd")
@@ -28,7 +28,7 @@ const _map_types = {
 	CHANNEL_HEIGHT: {
 		name = "height",
 		shader_param_name = "u_terrain_heightmap",
-		texture_flags = Texture.FLAG_FILTER,
+		texture_flags = Texture2D.FLAG_FILTER,
 		texture_format = Image.FORMAT_RH,
 		default_fill = null,
 		default_count = 1,
@@ -39,7 +39,7 @@ const _map_types = {
 	CHANNEL_NORMAL: {
 		name = "normal",
 		shader_param_name = "u_terrain_normalmap",
-		texture_flags = Texture.FLAG_FILTER,
+		texture_flags = Texture2D.FLAG_FILTER,
 		texture_format = Image.FORMAT_RGB8,
 		default_fill = Color(0.5, 0.5, 1.0),
 		default_count = 1,
@@ -55,7 +55,7 @@ const _map_types = {
 			"u_terrain_splatmap_2",
 			"u_terrain_splatmap_3"
 		],
-		texture_flags = Texture.FLAG_FILTER,
+		texture_flags = Texture2D.FLAG_FILTER,
 		texture_format = Image.FORMAT_RGBA8,
 		default_fill = [Color(1, 0, 0, 0), Color(0, 0, 0, 0)],
 		default_count = 1,
@@ -66,7 +66,7 @@ const _map_types = {
 	CHANNEL_COLOR: {
 		name = "color",
 		shader_param_name = "u_terrain_colormap",
-		texture_flags = Texture.FLAG_FILTER,
+		texture_flags = Texture2D.FLAG_FILTER,
 		texture_format = Image.FORMAT_RGBA8,
 		default_fill = Color(1, 1, 1, 1),
 		default_count = 1,
@@ -77,7 +77,7 @@ const _map_types = {
 	CHANNEL_DETAIL: {
 		name = "detail",
 		shader_param_name = "u_terrain_detailmap",
-		texture_flags = Texture.FLAG_FILTER,
+		texture_flags = Texture2D.FLAG_FILTER,
 		texture_format = Image.FORMAT_R8,
 		default_fill = Color(0, 0, 0),
 		default_count = 0,
@@ -88,7 +88,7 @@ const _map_types = {
 	CHANNEL_GLOBAL_ALBEDO: {
 		name = "global_albedo",
 		shader_param_name = "u_terrain_globalmap",
-		texture_flags = Texture.FLAG_FILTER | Texture.FLAG_MIPMAPS,
+		texture_flags = Texture2D.FLAG_FILTER | Texture2D.FLAG_MIPMAPS,
 		texture_format = Image.FORMAT_RGB8,
 		default_fill = null,
 		default_count = 0,
@@ -110,7 +110,7 @@ const _map_types = {
 	CHANNEL_SPLAT_WEIGHT: {
 		name = "splat_weight",
 		shader_param_name = "u_terrain_splat_weight_map",
-		texture_flags = Texture.FLAG_FILTER,
+		texture_flags = Texture2D.FLAG_FILTER,
 		texture_format = Image.FORMAT_RG8,
 		default_fill = Color(1, 0, 0),
 		default_count = 0,
@@ -143,7 +143,7 @@ signal map_changed(type, index)
 # A map is a texture covering the terrain.
 # The usage of a map depends on its type (heightmap, normalmap, splatmap...).
 class Map:
-	var texture: Texture
+	var texture: Texture2D
 	# Reference used in case we need the data CPU-side
 	var image: Image
 	# ID used for saving, because when adding/removing maps,
@@ -332,9 +332,9 @@ func get_height_at(x: int, y: int) -> float:
 	var im = get_image(CHANNEL_HEIGHT)
 	assert(im != null)
 
-	im.lock();
+	false # im.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed;
 	var h = Util.get_pixel_clamped(im, x, y).r;
-	im.unlock();
+	false # im.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed;
 	return h;
 
 
@@ -353,12 +353,12 @@ func get_interpolated_height_at(pos: Vector3) -> float:
 	var xf := pos.x - x0
 	var yf := pos.z - y0
 
-	im.lock()
+	false # im.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	var h00 = Util.get_pixel_clamped(im, x0, y0).r
 	var h10 = Util.get_pixel_clamped(im, x0 + 1, y0).r
 	var h01 = Util.get_pixel_clamped(im, x0, y0 + 1).r
 	var h11 = Util.get_pixel_clamped(im, x0 + 1, y0 + 1).r
-	im.unlock()
+	false # im.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	# Bilinear filter
 	var h = lerp(lerp(h00, h10, xf), lerp(h01, h11, xf), yf)
@@ -369,7 +369,7 @@ func get_interpolated_height_at(pos: Vector3) -> float:
 # Gets all heights within the given rectangle in cells.
 # This height is raw and doesn't account for scaling of the terrain node.
 # Data is returned as a PoolRealArray.
-func get_heights_region(x0: int, y0: int, w: int, h: int) -> PoolRealArray:
+func get_heights_region(x0: int, y0: int, w: int, h: int) -> PackedFloat32Array:
 	var im = get_image(CHANNEL_HEIGHT)
 	assert(im != null)
 	
@@ -378,7 +378,7 @@ func get_heights_region(x0: int, y0: int, w: int, h: int) -> PoolRealArray:
 	var max_x := Util.clamp_int(x0 + w, 0, im.get_width() + 1)
 	var max_y := Util.clamp_int(y0 + h, 0, im.get_height() + 1)
 
-	var heights := PoolRealArray()
+	var heights := PackedFloat32Array()
 
 	var area = (max_x - min_x) * (max_y - min_y)
 	if area == 0:
@@ -387,7 +387,7 @@ func get_heights_region(x0: int, y0: int, w: int, h: int) -> PoolRealArray:
 
 	heights.resize(area)
 
-	im.lock()
+	false # im.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	var i := 0
 	for y in range(min_y, max_y):
@@ -395,7 +395,7 @@ func get_heights_region(x0: int, y0: int, w: int, h: int) -> PoolRealArray:
 			heights[i] = im.get_pixel(x, y).r
 			i += 1
 
-	im.unlock()
+	false # im.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	return heights
 
@@ -403,7 +403,7 @@ func get_heights_region(x0: int, y0: int, w: int, h: int) -> PoolRealArray:
 # Gets all heights.
 # This height is raw and doesn't account for scaling of the terrain node.
 # Data is returned as a PoolRealArray.
-func get_all_heights() -> PoolRealArray:
+func get_all_heights() -> PackedFloat32Array:
 	return get_heights_region(0, 0, _resolution, _resolution)
 
 
@@ -603,7 +603,7 @@ func _upload_region(channel: int, index: int, min_x: int, min_y: int, size_x: in
 				"The map ", channel, "[", index, "] will be uploaded entirely."))
 
 		texture = ImageTexture.new()
-		texture.create_from_image(image, flags)
+		texture.create_from_image(image) #,flags
 
 		map.texture = texture
 
@@ -614,11 +614,11 @@ func _upload_region(channel: int, index: int, min_x: int, min_y: int, size_x: in
 		_logger.debug(str(
 			"_upload_region was used but the image size is different. ",\
 			"The map ", channel, "[", index, "] will be reuploaded entirely."))
-		texture.create_from_image(image, flags)
+		texture.create_from_image(image) #,flags
 
 	else:
-		if VisualServer.has_method("texture_set_data_partial"):
-			VisualServer.texture_set_data_partial( \
+		if RenderingServer.has_method("texture_set_data_partial"):
+			RenderingServer.texture_set_data_partial( \
 				texture.get_rid(), image, \
 				min_x, min_y, \
 				size_x, size_y, \
@@ -646,7 +646,7 @@ func _upload_region(channel: int, index: int, min_x: int, min_y: int, size_x: in
 			#          IX     U  .        V     IX
 			#           V     .           .     V
 			#
-			texture.create_from_image(image, flags)
+			texture.create_from_image(image) #,flags
 
 	#_logger.debug(str("Channel updated ", channel))
 
@@ -733,7 +733,7 @@ func get_image(map_type: int, index := 0) -> Image:
 	return maps[index].image
 
 
-func get_texture(map_type: int, index := 0, writable := false) -> Texture:
+func get_texture(map_type: int, index := 0, writable := false) -> Texture2D:
 	var maps : Array = _maps[map_type]
 	var map : Map = maps[index]
 
@@ -779,9 +779,9 @@ func get_point_aabb(cell_x: int, cell_y: int) -> Vector2:
 	if cy >= _chunked_vertical_bounds.get_height():
 		cy = _chunked_vertical_bounds.get_height() - 1
 
-	_chunked_vertical_bounds.lock()
+	false # _chunked_vertical_bounds.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	var b := _chunked_vertical_bounds.get_pixel(cx, cy)
-	_chunked_vertical_bounds.unlock()
+	false # _chunked_vertical_bounds.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	return Vector2(b.r, b.g)
 
 
@@ -808,7 +808,7 @@ func get_region_aabb(origin_in_cells_x: int, origin_in_cells_y: int, \
 	cmax_x = Util.clamp_int(cmax_x, 0, _chunked_vertical_bounds.get_width())
 	cmax_y = Util.clamp_int(cmax_y, 0, _chunked_vertical_bounds.get_height())
 
-	_chunked_vertical_bounds.lock()
+	false # _chunked_vertical_bounds.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	
 	var min_height := _chunked_vertical_bounds.get_pixel(cmin_x, cmin_y).r
 	var max_height = min_height
@@ -819,7 +819,7 @@ func get_region_aabb(origin_in_cells_x: int, origin_in_cells_y: int, \
 			min_height = min(b.r, min_height)
 			max_height = max(b.g, max_height)
 	
-	_chunked_vertical_bounds.unlock()
+	false # _chunked_vertical_bounds.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	var aabb = AABB()
 	aabb.position = Vector3(origin_in_cells_x, min_height, origin_in_cells_y)
@@ -864,7 +864,7 @@ func _update_vertical_bounds(origin_in_cells_x: int, origin_in_cells_y: int, \
 	var chunk_size_x := VERTICAL_BOUNDS_CHUNK_SIZE + 1
 	var chunk_size_y := VERTICAL_BOUNDS_CHUNK_SIZE + 1
 	
-	_chunked_vertical_bounds.lock()
+	false # _chunked_vertical_bounds.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	for y in range(cmin_y, cmax_y):
 		var pmin_y := y * VERTICAL_BOUNDS_CHUNK_SIZE
@@ -874,7 +874,7 @@ func _update_vertical_bounds(origin_in_cells_x: int, origin_in_cells_y: int, \
 			var b = _compute_vertical_bounds_at(pmin_x, pmin_y, chunk_size_x, chunk_size_y)
 			_chunked_vertical_bounds.set_pixel(x, y, Color(b.x, b.y, 0))
 
-	_chunked_vertical_bounds.unlock()
+	false # _chunked_vertical_bounds.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 
 func _compute_vertical_bounds_at(
@@ -940,7 +940,9 @@ func _load_metadata(path: String):
 	assert(err == OK)
 	var text = f.get_as_text()
 	f.close()
-	var res = JSON.parse(text)
+	var test_json_conv = JSON.new()
+	test_json_conv.parse(text)
+	var res = test_json_conv.get_data()
 	assert(res.error == OK)
 	_deserialize_metadata(res.result)
 
@@ -948,7 +950,7 @@ func _load_metadata(path: String):
 func _save_metadata(path: String):
 	var f = File.new()
 	var d = _serialize_metadata()
-	var text = JSON.print(d, "\t", true)
+	var text = JSON.stringify(d, "\t", true)
 	var err = f.open(path, File.WRITE)
 	assert(err == OK)
 	f.store_string(text)
@@ -984,7 +986,7 @@ func _deserialize_metadata(dict: Dictionary) -> bool:
 
 	if dict.version != META_VERSION:
 		_logger.error("Terrain metadata version mismatch. Got {0}, expected {1}" \
-			.format([dict.version, META_VERSION]))
+			super.format([dict.version, META_VERSION]))
 		return false
 
 	var data = dict["maps"]
@@ -1066,7 +1068,7 @@ func _save_map(dir_path: String, map_type: int, index: int) -> bool:
 			# This data doesn't have such map
 			return true
 
-	var dir = Directory.new()
+	var dir = DirAccess.new()
 	if not dir.dir_exists(dir_path):
 		dir.make_dir(dir_path)
 
@@ -1082,7 +1084,7 @@ func _save_map(dir_path: String, map_type: int, index: int) -> bool:
 		var err = ResourceSaver.save(fpath, im)
 		if err != OK:
 			_logger.error("Could not save '{0}', error {1}" \
-				.format([fpath, Errors.get_message(err)]))
+				super.format([fpath, Errors.get_message(err)]))
 			return false
 		_try_delete_0_8_0_heightmap(fpath.get_basename(), _logger)
 
@@ -1098,13 +1100,13 @@ static func _try_write_default_import_options(fpath: String, channel: int, logge
 	
 	var map_info = _map_types[channel]
 	var texture_flags: int = map_info.texture_flags
-	var filter := (texture_flags & Texture.FLAG_FILTER) != 0
+	var filter := (texture_flags & Texture2D.FLAG_FILTER) != 0
 	var srgb: bool = map_info.srgb
 
 	var defaults = {
 		"remap": {
 			"importer": "texture",
-			"type": "StreamTexture"
+			"type": "CompressedTexture2D"
 		},
 		"deps": {
 			"source_file": fpath
@@ -1159,7 +1161,7 @@ func _load_map(dir: String, map_type: int, index: int) -> bool:
 		# In this particular case, we can use Godot ResourceLoader directly,
 		# if the texture got imported.
 
-		if Engine.editor_hint:
+		if Engine.is_editor_hint():
 			# But in the editor we want textures to be editable,
 			# so we have to automatically load the data also in RAM
 			if map.image == null:
@@ -1195,7 +1197,7 @@ func _ensure_map_format(im: Image, map_type: int, index: int):
 	var expected_format = _map_types[map_type].texture_format
 	if format != expected_format:
 		_logger.warn("Map {0} loaded as format {1}, expected {2}. Will be converted." \
-			.format([get_map_debug_name(map_type, index), format, expected_format]))
+			super.format([get_map_debug_name(map_type, index), format, expected_format]))
 		im.convert(expected_format)
 
 
@@ -1209,7 +1211,7 @@ static func _try_load_0_8_0_heightmap(fpath: String, channel: int, existing_imag
 	var err = f.open(fpath, File.READ)
 	if err != OK:
 		logger.error("Could not open '{0}' for reading, error {1}" \
-			.format([fpath, Errors.get_message(err)]))
+			super.format([fpath, Errors.get_message(err)]))
 		return false
 
 	var width = f.get_32()
@@ -1219,7 +1221,7 @@ static func _try_load_0_8_0_heightmap(fpath: String, channel: int, existing_imag
 	var data = f.get_buffer(data_size)
 	if data.size() != data_size:
 		logger.error("Unexpected end of buffer, expected size {0}, got {1}" \
-			.format([data_size, data.size()]))
+			super.format([data_size, data.size()]))
 		return false
 
 	var im = existing_image
@@ -1231,12 +1233,12 @@ static func _try_load_0_8_0_heightmap(fpath: String, channel: int, existing_imag
 
 static func _try_delete_0_8_0_heightmap(fpath: String, logger):
 	fpath += ".bin"
-	var d = Directory.new()
+	var d = DirAccess.new()
 	if d.file_exists(fpath):
 		var err = d.remove(fpath)
 		if err != OK:
 			logger.error("Could not erase file '{0}', error {1}" \
-				.format([fpath, Errors.get_message(err)]))
+				super.format([fpath, Errors.get_message(err)]))
 
 
 # Imports images into the terrain data by converting them to the internal format.
@@ -1310,8 +1312,8 @@ func _import_heightmap(fpath: String, min_y: int, max_y: int, big_endian: bool) 
 
 		_logger.debug("Converting to internal format...")
 
-		im.lock()
-		src_image.lock()
+		false # im.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
+		false # src_image.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 		# Convert to internal format (from RGBA8 to RH16) with range scaling
 		for y in range(0, width):
@@ -1320,8 +1322,8 @@ func _import_heightmap(fpath: String, min_y: int, max_y: int, big_endian: bool) 
 				var h := min_y + hrange * gs
 				im.set_pixel(x, y, Color(h, 0, 0))
 
-		src_image.unlock()
-		im.unlock()
+		false # src_image.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
+		false # im.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	
 	elif ext == "exr":
 		var src_image := Image.new()
@@ -1360,7 +1362,7 @@ func _import_heightmap(fpath: String, min_y: int, max_y: int, big_endian: bool) 
 		if err != OK:
 			return false
 
-		var file_len = f.get_len()
+		var file_len = f.get_length()
 		var file_res = Util.integer_square_root(file_len / 2)
 		if file_res == -1:
 			# Can't deduce size
@@ -1391,7 +1393,7 @@ func _import_heightmap(fpath: String, min_y: int, max_y: int, big_endian: bool) 
 
 		_logger.debug("Converting to internal format...")
 
-		im.lock()
+		false # im.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 		var rw := Util.min_int(res, file_res)
 		var rh := Util.min_int(res, file_res)
@@ -1407,7 +1409,7 @@ func _import_heightmap(fpath: String, min_y: int, max_y: int, big_endian: bool) 
 			for x in range(rw, file_res):
 				f.get_16()
 
-		im.unlock()
+		false # im.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	else:
 		# File extension not recognized
@@ -1576,8 +1578,8 @@ func cell_raycast(ray_origin: Vector3, ray_direction: Vector3, max_distance: flo
 	ctx.broad_param_2d_to_3d = ctx.cell_param_2d_to_3d * VERTICAL_BOUNDS_CHUNK_SIZE
 	#ctx.dbg = dbg
 
-	heightmap.lock()
-	_chunked_vertical_bounds.lock()
+	false # heightmap.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
+	false # _chunked_vertical_bounds.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	# Broad phase through cached vertical bound chunks
 	var broad_ray_origin = clipped_segment_2d[0] / VERTICAL_BOUNDS_CHUNK_SIZE
@@ -1586,8 +1588,8 @@ func cell_raycast(ray_origin: Vector3, ray_direction: Vector3, max_distance: flo
 	var hit_bp = Util.grid_raytrace_2d(broad_ray_origin, ray_direction_2d, 
 		funcref(ctx, "broad_cb"), broad_max_distance)
 
-	heightmap.unlock()
-	_chunked_vertical_bounds.unlock()
+	false # heightmap.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
+	false # _chunked_vertical_bounds.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	if hit_bp == null:
 		# No hit

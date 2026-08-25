@@ -1,4 +1,4 @@
-tool
+@tool
 class_name HTerrainDataLoader
 extends ResourceFormatLoader
 
@@ -6,18 +6,18 @@ extends ResourceFormatLoader
 const HTerrainData = preload("./hterrain_data.gd")
 
 
-func get_recognized_extensions():
-	return PoolStringArray([HTerrainData.META_EXTENSION])
+func _get_recognized_extensions():
+	return PackedStringArray([HTerrainData.META_EXTENSION])
 
 
-func get_resource_type(path):
+func _get_resource_type(path):
 	var ext = path.get_extension().to_lower()
 	if ext == HTerrainData.META_EXTENSION:
 		return "Resource"
 	return ""
 
 
-func handles_type(typename):
+func _handles_type(typename):
 	return typename == "Resource"
 
 

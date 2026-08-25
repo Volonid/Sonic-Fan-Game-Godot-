@@ -1,3 +1,4 @@
+@tool
 
 # I needed a custom container for this because textures edited by this plugin are often
 # unfit to display in a GUI, they need to go through a shader (either discarding alpha,
@@ -5,7 +6,6 @@
 # and items cannot have individual shaders.
 # I could create new textures just for that but it would be expensive.
 
-tool
 extends ScrollContainer
 
 const TextureListItemScene = preload("./texture_list_item.tscn")
@@ -14,7 +14,7 @@ const TextureListItem = preload("./texture_list_item.gd")
 signal item_selected(index)
 signal item_activated(index)
 
-onready var _container = $Container
+@onready var _container = $Container
 
 
 var _selected_item := -1
@@ -33,7 +33,7 @@ var _selected_item := -1
 
 # Note: the texture can be a TextureArray, which does not inherit Texture
 func add_item(text: String, texture: Resource, texture_layer: int = 0):
-	var item = TextureListItemScene.instance()
+	var item = TextureListItemScene.instantiate()
 	_container.add_child(item)
 	item.set_text(text)
 	item.set_texture(texture, texture_layer)

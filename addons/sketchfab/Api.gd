@@ -1,4 +1,4 @@
-tool
+@tool
 extends Object
 
 const OAUTH_HOSTNAME = "sketchfab.com"
@@ -30,7 +30,7 @@ func term():
 	requestor.term()
 
 func cancel():
-	yield(requestor.cancel(), "completed")
+	await requestor.cancel().completed
 
 func login(username, password):
 	var query = {
@@ -45,7 +45,7 @@ func login(username, password):
 		{ "method": HTTPClient.METHOD_POST, "encoding": "form" }
 	)
 
-	var result = yield(requestor, "completed")
+	var result = await requestor.completed
 	requestor.term()
 	busy = false
 
@@ -61,7 +61,7 @@ func login(username, password):
 func get_my_info():
 	busy = true
 	requestor.request("%s/me" % BASE_PATH, null, { "token": get_token() })
-	var result = yield(requestor, "completed")
+	var result = await requestor.completed
 	busy = false
 
 	return _handle_result(result)
@@ -70,7 +70,7 @@ func get_categories():
 	busy = true
 	requestor.request("%s/categories" % BASE_PATH)
 
-	var result = yield(requestor, "completed")
+	var result = await requestor.completed
 	busy = false
 
 	return _handle_result(result)
@@ -79,7 +79,7 @@ func get_model_detail(uid):
 	busy = true
 	requestor.request("%s/models/%s" % [BASE_PATH, uid])
 
-	var result = yield(requestor, "completed")
+	var result = await requestor.completed
 	busy = false
 
 	return _handle_result(result)
@@ -88,7 +88,7 @@ func request_download(uid):
 	busy = true
 	requestor.request("%s/models/%s/download" % [BASE_PATH, uid], null, { "token": get_token() })
 
-	var result = yield(requestor, "completed")
+	var result = await requestor.completed
 	busy = false
 
 	return _handle_result(result)
@@ -117,7 +117,7 @@ func search_models(q, categories, animated, staff_picked, min_face_count, max_fa
 	var search_domain = BASE_PATH + domain_suffix
 	requestor.request(search_domain, query, { "token": get_token() })
 
-	var result = yield(requestor, "completed")
+	var result = await requestor.completed
 	busy = false
 
 	return _handle_result(result)
@@ -129,7 +129,7 @@ func fetch_next_page(url):
 	busy = true
 	requestor.request(uri)
 
-	var result = yield(requestor, "completed")
+	var result = await requestor.completed
 	busy = false
 
 	return _handle_result(result)

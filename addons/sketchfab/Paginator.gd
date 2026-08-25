@@ -1,4 +1,4 @@
-tool
+@tool
 extends ScrollContainer
 
 const SafeData = preload("res://addons/sketchfab/SafeData.gd")
@@ -6,11 +6,11 @@ var ResultItem = load("res://addons/sketchfab/ResultItem.tscn")
 
 var api = preload("res://addons/sketchfab/Api.gd").new()
 
-onready var grid = find_node("ResultsGrid")
-onready var trailer = find_node("Trailer")
-onready var label = find_node("Label")
-onready var cta_button = find_node("CTA")
-onready var search_domain = find_node("SearchDomain")
+@onready var grid = find_child("ResultsGrid")
+@onready var trailer = find_child("Trailer")
+@onready var label = find_child("Label")
+@onready var cta_button = find_child("CTA")
+@onready var search_domain = find_child("SearchDomain")
 
 var next_page_url
 
@@ -28,7 +28,7 @@ func search(query, categories, animated, staff_picked, min_face_count, max_face_
 	trailer.modulate.a = 1.0
 	label.text = "Fetching..."
 	cta_button.hide()
-	yield(api.cancel(), "completed")
+	await api.cancel().completed
 	var result = yield(api.search_models(
 		query,
 		categories,
@@ -45,7 +45,7 @@ func search(query, categories, animated, staff_picked, min_face_count, max_face_
 
 	# Upgrade to pro and empty results
 	if domain_suffix == "/me":
-		var user = yield(api.get_my_info(), "completed")
+		var user = await api.get_my_info().completed
 		if user["account"] == "plus" || user["account"] == "basic":
 			trailer.modulate.a = 1.0
 			label.text = "Access your personal library of 3D models"
@@ -70,7 +70,7 @@ func _process(delta):
 		trailer.modulate.a = 1.0
 		label.text = "Fetching..."
 		cta_button.hide()
-		var result = yield(api.fetch_next_page(next_page_url), "completed")
+		var result = await api.fetch_next_page(next_page_url).completed
 		trailer.modulate.a = 0.0
 
 		_process_page(result)
@@ -89,7 +89,7 @@ func _process_page(result):
 	# Process
 	var results = SafeData.array(result, "results")
 	for result in results:
-		var item = ResultItem.instance()
+		var item = ResultItem.instantiate()
 		item.set_data(result)
 		grid.add_child(item)
 

@@ -26,24 +26,24 @@ func _init():
 	var base_name = name_regex.search(zip_path).get_string(1)
 
 	var out_path = zip_path.left(zip_path.find(base_name)) + base_name + "/"
-	Directory.new().make_dir(out_path)
+	DirAccess.new().make_dir(out_path)
 	unpack_dir("res://", out_path)
 
 	print("Done!")
 
 func unpack_dir(src_path, out_path):
-	print("Directory: %s -> %s" % [src_path, out_path])
+	print("DirAccess: %s -> %s" % [src_path, out_path])
 
-	var dir = Directory.new()
+	var dir = DirAccess.new()
 	dir.open(src_path)
-	dir.list_dir_begin(true)
+	dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
 
 	var file_name = dir.get_next()
 	while file_name != "":
 		if dir.current_is_dir():
 			var new_src_path = "%s%s/" % [src_path, file_name]
 			var new_out_path = "%s%s/" % [out_path, file_name]
-			Directory.new().make_dir(new_out_path)
+			DirAccess.new().make_dir(new_out_path)
 			unpack_dir(new_src_path, new_out_path)
 		else:
 			var file_src_path = "%s%s" % [src_path, file_name]
@@ -51,7 +51,7 @@ func unpack_dir(src_path, out_path):
 			print("File: %s -> %s" % [file_src_path, file_out_path])
 			var file = File.new()
 			file.open(file_src_path, File.READ)
-			var data = file.get_buffer(file.get_len())
+			var data = file.get_buffer(file.get_length())
 			file.close()
 			file.open(file_out_path, File.WRITE)
 			file.store_buffer(data)

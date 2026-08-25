@@ -1,4 +1,4 @@
-tool
+@tool
 
 const Errors = preload("./errors.gd")
 
@@ -49,7 +49,7 @@ static func clamp_int(x: int, a: int, b: int) -> int:
 
 # CubeMesh doesn't have a wireframe option
 static func create_wirecube_mesh(color = Color(1,1,1)) -> Mesh:
-	var positions := PoolVector3Array([
+	var positions := PackedVector3Array([
 		Vector3(0, 0, 0),
 		Vector3(1, 0, 0),
 		Vector3(1, 0, 1),
@@ -59,11 +59,11 @@ static func create_wirecube_mesh(color = Color(1,1,1)) -> Mesh:
 		Vector3(1, 1, 1),
 		Vector3(0, 1, 1),
 	])
-	var colors := PoolColorArray([
+	var colors := PackedColorArray([
 		color, color, color, color,
 		color, color, color, color,
 	])
-	var indices := PoolIntArray([
+	var indices := PackedInt32Array([
 		0, 1,
 		1, 2,
 		2, 3,
@@ -145,7 +145,7 @@ static func is_in_edited_scene(node: Node) -> bool:
 	var edited_scene = node.get_tree().edited_scene_root
 	if node == edited_scene:
 		return true
-	return edited_scene != null and edited_scene.is_a_parent_of(node)
+	return edited_scene != null and edited_scene.is_ancestor_of(node)
 
 
 # Get an extended or cropped version of an image,
@@ -239,18 +239,18 @@ static func apply_dpi_scale(root: Control, dpi_scale: float):
 	while len(to_process) > 0:
 		var node : Node = to_process[-1]
 		to_process.pop_back()
-		if node is Viewport:
+		if node is SubViewport:
 			continue
 		if node is Control:
-			if node.rect_min_size != Vector2(0, 0):
-				node.rect_min_size *= dpi_scale
+			if node.custom_minimum_size != Vector2(0, 0):
+				node.custom_minimum_size *= dpi_scale
 			var parent = node.get_parent()
 			if parent != null:
 				if not (parent is Container):
-					node.margin_bottom *= dpi_scale
-					node.margin_left *= dpi_scale
-					node.margin_top *= dpi_scale
-					node.margin_right *= dpi_scale
+					node.offset_bottom *= dpi_scale
+					node.offset_left *= dpi_scale
+					node.offset_top *= dpi_scale
+					node.offset_right *= dpi_scale
 		for i in node.get_child_count():
 			to_process.append(node.get_child(i))
 
@@ -272,36 +272,36 @@ static func get_aabb_intersection_with_segment(aabb: AABB,
 	var x_rect = Rect2(aabb.position.y, aabb.position.z, aabb.size.y, aabb.size.z)
 	
 	hit = Plane(Vector3(1, 0, 0), aabb.position.x) \
-		.intersects_segment(segment_begin, segment_end)
+		super.intersects_segment(segment_begin, segment_end)
 	if hit != null and x_rect.has_point(Vector2(hit.y, hit.z)):
 		hits.append(hit)
 	
 	hit = Plane(Vector3(1, 0, 0), aabb.end.x) \
-		.intersects_segment(segment_begin, segment_end)
+		super.intersects_segment(segment_begin, segment_end)
 	if hit != null and x_rect.has_point(Vector2(hit.y, hit.z)):
 		hits.append(hit)
 
 	var y_rect = Rect2(aabb.position.x, aabb.position.z, aabb.size.x, aabb.size.z)
 
 	hit = Plane(Vector3(0, 1, 0), aabb.position.y) \
-		.intersects_segment(segment_begin, segment_end)
+		super.intersects_segment(segment_begin, segment_end)
 	if hit != null and y_rect.has_point(Vector2(hit.x, hit.z)):
 		hits.append(hit)
 	
 	hit = Plane(Vector3(0, 1, 0), aabb.end.y) \
-		.intersects_segment(segment_begin, segment_end)
+		super.intersects_segment(segment_begin, segment_end)
 	if hit != null and y_rect.has_point(Vector2(hit.x, hit.z)):
 		hits.append(hit)
 
 	var z_rect = Rect2(aabb.position.x, aabb.position.y, aabb.size.x, aabb.size.y)
 
 	hit = Plane(Vector3(0, 0, 1), aabb.position.z) \
-		.intersects_segment(segment_begin, segment_end)
+		super.intersects_segment(segment_begin, segment_end)
 	if hit != null and z_rect.has_point(Vector2(hit.x, hit.y)):
 		hits.append(hit)
 	
 	hit = Plane(Vector3(0, 0, 1), aabb.end.z) \
-		.intersects_segment(segment_begin, segment_end)
+		super.intersects_segment(segment_begin, segment_end)
 	if hit != null and z_rect.has_point(Vector2(hit.x, hit.y)):
 		hits.append(hit)
 	
@@ -469,10 +469,10 @@ static func get_segment_clipped_by_rect(rect: Rect2,
 	var c := Vector2(rect.position.x, rect.end.y)
 	var d := rect.end
 	
-	var ab = Geometry.segment_intersects_segment_2d(segment_begin, segment_end, a, b)
-	var cd = Geometry.segment_intersects_segment_2d(segment_begin, segment_end, c, d)
-	var ac = Geometry.segment_intersects_segment_2d(segment_begin, segment_end, a, c)
-	var bd = Geometry.segment_intersects_segment_2d(segment_begin, segment_end, b, d)
+	var ab = Geometry.segment_intersects_segment(segment_begin, segment_end, a, b)
+	var cd = Geometry.segment_intersects_segment(segment_begin, segment_end, c, d)
+	var ac = Geometry.segment_intersects_segment(segment_begin, segment_end, a, c)
+	var bd = Geometry.segment_intersects_segment(segment_begin, segment_end, b, d)
 	
 	var hits = []
 	if ab != null:
@@ -519,16 +519,16 @@ static func get_pixel_clamped(im: Image, x: int, y: int) -> Color:
 	return im.get_pixel(x, y)
 
 
-static func update_configuration_warning(node: Node, recursive: bool):
-	if not Engine.editor_hint:
+static func update_configuration_warnings(node: Node, recursive: bool):
+	if not Engine.is_editor_hint():
 		return
 	# Godot 3.1 and older doesn't have this function
-	if node.has_method("update_configuration_warning"):
-		node.call("update_configuration_warning")
+	if node.has_method("update_configuration_warnings"):
+		node.call("update_configuration_warnings")
 		if recursive:
 			for i in node.get_child_count():
 				var child = node.get_child(i)
-				update_configuration_warning(child, true)
+				update_configuration_warnings(child, true)
 
 
 static func write_import_file(settings: Dictionary, imp_fpath: String, logger) -> bool:
@@ -537,7 +537,7 @@ static func write_import_file(settings: Dictionary, imp_fpath: String, logger) -
 	var err := f.open(imp_fpath, File.WRITE)
 	if err != OK:
 		logger.error("Could not open '{0}' for write, error {1}" \
-			.format([imp_fpath, Errors.get_message(err)]))
+			super.format([imp_fpath, Errors.get_message(err)]))
 		return false
 
 	for section in settings:

@@ -1,8 +1,8 @@
+@tool
 
 # Editor-specific utilities.
 # This script cannot be loaded in an exported game.
 
-tool
 
 # TODO There is no script API to access editor scale
 # Ported from https://github.com/godotengine/godot/blob/
@@ -15,8 +15,8 @@ static func get_dpi_scale(editor_settings: EditorSettings) -> float:
 	match display_scale:
 		0:
 			# Try applying a suitable display scale automatically
-			var screen = OS.current_screen
-			var large = OS.get_screen_dpi(screen) >= 192 and OS.get_screen_size(screen).x > 2000
+			var screen = get_window().current_screen
+			var large = DisplayServer.screen_get_dpi(screen) >= 192 and DisplayServer.screen_get_size(screen).x > 2000
 			edscale = 2.0 if large else 1.0
 		1:
 			edscale = 0.75
@@ -40,14 +40,14 @@ static func get_dpi_scale(editor_settings: EditorSettings) -> float:
 # because when I test UI in isolation, I can't use `EditorFileDialog`.
 static func create_open_file_dialog() -> ConfirmationDialog:
 	var d
-	if Engine.editor_hint:
+	if Engine.is_editor_hint():
 		d = EditorFileDialog.new()
-		d.mode = EditorFileDialog.MODE_OPEN_FILE
+		d.mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 		d.access = EditorFileDialog.ACCESS_RESOURCES
 	else:
 		# Duh. I need to be able to test it.
 		d = FileDialog.new()
-		d.mode = FileDialog.MODE_OPEN_FILE
+		d.mode = FileDialog.FILE_MODE_OPEN_FILE
 		d.access = FileDialog.ACCESS_RESOURCES
 	d.resizable = true
 	return d
@@ -55,14 +55,14 @@ static func create_open_file_dialog() -> ConfirmationDialog:
 
 static func create_open_dir_dialog() -> ConfirmationDialog:
 	var d
-	if Engine.editor_hint:
+	if Engine.is_editor_hint():
 		d = EditorFileDialog.new()
-		d.mode = EditorFileDialog.MODE_OPEN_DIR
+		d.mode = EditorFileDialog.FILE_MODE_OPEN_DIR
 		d.access = EditorFileDialog.ACCESS_RESOURCES
 	else:
 		# Duh. I need to be able to test it.
 		d = FileDialog.new()
-		d.mode = FileDialog.MODE_OPEN_DIR
+		d.mode = FileDialog.FILE_MODE_OPEN_DIR
 		d.access = FileDialog.ACCESS_RESOURCES
 	d.resizable = true
 	return d
@@ -98,11 +98,11 @@ static func _add_image_filters(file_dialog):
 
 static func _add_texture_filters(file_dialog):
 	_add_image_filters(file_dialog)
-	file_dialog.add_filter("*.stex ; StreamTexture files")
+	file_dialog.add_filter("*.stex ; CompressedTexture2D files")
 	file_dialog.add_filter("*.packed_tex ; HTerrainPackedTexture files")
 
 
 static func _add_texture_array_filters(file_dialog):
 	_add_image_filters(file_dialog)
-	file_dialog.add_filter("*.texarr ; TextureArray files")
+	file_dialog.add_filter("*.texarr ; Texture2DArray files")
 	file_dialog.add_filter("*.packed_texarr ; HTerrainPackedTextureArray files")

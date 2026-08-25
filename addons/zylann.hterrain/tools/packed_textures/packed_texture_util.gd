@@ -1,4 +1,4 @@
-tool
+@tool
 
 const Logger = preload("../../util/logger.gd")
 const Errors = preload("../../util/errors.gd")
@@ -13,7 +13,7 @@ static func generate_image(sources: Dictionary, resolution: int, logger) -> Resu
 	var image := Image.new()
 	image.create(resolution, resolution, true, Image.FORMAT_RGBA8)
 	
-	image.lock()
+	false # image.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	var flip_normalmap_y := false
 	
@@ -38,12 +38,12 @@ static func generate_image(sources: Dictionary, resolution: int, logger) -> Resu
 			var err := src_image.load(src_path)
 			if err != OK:
 				return Result.new(false, "Could not open file \"{0}\": {1}" \
-					.format([src_path, Errors.get_message(err)])) \
-					.with_value(err)
+					super.format([src_path, Errors.get_message(err)])) \
+					super.with_value(err)
 			src_image.decompress()
 		
 		src_image.resize(image.get_width(), image.get_height())
-		src_image.lock()
+		false # src_image.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 		
 		# TODO Support more channel configurations
 		if key == "rgb":
@@ -67,9 +67,9 @@ static func generate_image(sources: Dictionary, resolution: int, logger) -> Resu
 			image.blit_rect(src_image, 
 				Rect2(0, 0, image.get_width(), image.get_height()), Vector2())
 
-		src_image.unlock()
+		false # src_image.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
-	image.unlock()
+	false # image.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	
 	if sources.has("normalmap_flip_y") and sources.normalmap_flip_y:
 		_flip_normalmap_y(image)
@@ -78,11 +78,11 @@ static func generate_image(sources: Dictionary, resolution: int, logger) -> Resu
 
 
 static func _flip_normalmap_y(image: Image):
-	image.lock()
+	false # image.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	for y in image.get_height():
 		for x in image.get_width():
 			var col := image.get_pixel(x, y)
 			col.g = 1.0 - col.g
 			image.set_pixel(x, y, col)
-	image.unlock()
+	false # image.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 

@@ -1,4 +1,4 @@
-tool
+@tool
 
 # TODO Godot does not have an API to make custom texture importers easier.
 # So we have to re-implement the entire logic of `ResourceImporterTexture`.
@@ -68,17 +68,17 @@ static func import(
 
 	var tex_flags := 0
 	if repeat > 0:
-		tex_flags |= Texture.FLAG_REPEAT
+		tex_flags |= Texture2D.FLAG_REPEAT
 	if repeat == 2:
-		tex_flags |= Texture.FLAG_MIRRORED_REPEAT
+		tex_flags |= Texture2D.FLAG_MIRRORED_REPEAT
 	if filter:
-		tex_flags |= Texture.FLAG_FILTER
+		tex_flags |= Texture2D.FLAG_FILTER
 	if mipmaps or compress_mode == COMPRESS_VIDEO_RAM:
-		tex_flags |= Texture.FLAG_MIPMAPS
+		tex_flags |= Texture2D.FLAG_MIPMAPS
 	if anisotropic:
-		tex_flags |= Texture.FLAG_ANISOTROPIC_FILTER
+		tex_flags |= Texture2D.FLAG_ANISOTROPIC_FILTER
 	if srgb == 1:
-		tex_flags |= Texture.FLAG_CONVERT_TO_LINEAR
+		tex_flags |= Texture2D.FLAG_CONVERT_TO_LINEAR
 
 	if size_limit > 0 and (image.get_width() > size_limit or image.get_height() > size_limit):
 		#limit size
@@ -107,12 +107,12 @@ static func import(
 		var height = image.get_height()
 		var width = image.get_width()
 
-		image.lock()
+		false # image.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 		for i in width:
 			for j in height:
 				image.set_pixel(i, j, image.get_pixel(i, j).inverted())
 
-		image.unlock()
+		false # image.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	var detect_srgb := srgb == 2
 	var detect_normal := normal == 0
@@ -129,7 +129,7 @@ static func import(
 		var is_ldr := \
 			(image.get_format() >= Image.FORMAT_L8 and image.get_format() <= Image.FORMAT_RGBA5551)
 		var can_bptc : bool = ProjectSettings.get("rendering/vram_compression/import_bptc")
-		var can_s3tc : bool = ProjectSettings.get("rendering/vram_compression/import_s3tc")
+		var can_s3tc : bool = ProjectSettings.get("rendering/textures/vram_compression/import_s3tc_bptc")
 
 		if can_bptc:
 #			return Result.new(false, "{0} cannot handle BPTC compression on {1}, " +
@@ -176,7 +176,7 @@ static func import(
 			formats_imported.push_back("s3tc")
 			ok_on_pc = true
 
-		if ProjectSettings.get("rendering/vram_compression/import_etc2"):
+		if ProjectSettings.get("rendering/textures/vram_compression/import_etc2_astc"):
 			_save_stex(
 				image,
 				p_save_path + ".etc2.stex",
@@ -220,7 +220,7 @@ static func import(
 				p_save_path + ".pvrtc.stex",
 				compress_mode,
 				lossy,
-				Image.COMPRESS_PVRTC4,
+				Image.COMPRESS_PVRTC1_4,
 				mipmaps,
 				tex_flags,
 				stream,
@@ -239,7 +239,7 @@ static func import(
 			return Result.new(false, 
 				"No suitable PC VRAM compression enabled in Project Settings. " +
 				"The texture {0} will not display correctly on PC.".format([p_source_path])) \
-				.with_value(ERR_INVALID_PARAMETER)
+				super.with_value(ERR_INVALID_PARAMETER)
 	
 	else:
 		#import normally
@@ -297,7 +297,7 @@ static func _save_stex(
 	var err = f.open(p_fpath, File.WRITE)
 	if err != OK:
 		return Result.new(false, "Could not open file {0}:\n{1}" \
-			.format([p_fpath, Errors.get_message(err)]))
+			super.format([p_fpath, Errors.get_message(err)]))
 
 	f.store_8(ord('G'))
 	f.store_8(ord('D'))
@@ -307,7 +307,7 @@ static func _save_stex(
 	var resize_to_po2 := false
 	
 	if p_compress_mode == COMPRESS_VIDEO_RAM and p_force_po2_for_compressed \
-	and (p_mipmaps or p_texture_flags & Texture.FLAG_REPEAT):
+	and (p_mipmaps or p_texture_flags & Texture2D.FLAG_REPEAT):
 		resize_to_po2 = true
 		f.store_16(Util.next_power_of_two(p_image.get_width()))
 		f.store_16(p_image.get_width())
@@ -369,7 +369,7 @@ static func _save_stex(
 
 		COMPRESS_LOSSY:
 			return Result.new(false,
-				"Saving a StreamTexture with lossy compression cannot be achieved by scripts.\n"
+				"Saving a CompressedTexture2D with lossy compression cannot be achieved by scripts.\n"
 				+ "Godot would need to either allow to save an image as WEBP to a buffer,\n"
 				+ "or expose `ResourceImporterTexture::_save_stex` so custom importers\n"
 				+ "would be easier to make.")
@@ -390,7 +390,7 @@ static func _save_stex(
 				var csource := Image.COMPRESS_SOURCE_GENERIC
 				if p_force_normal:
 					csource = Image.COMPRESS_SOURCE_NORMAL
-				elif p_texture_flags & VisualServer.TEXTURE_FLAG_CONVERT_TO_LINEAR:
+				elif p_texture_flags & RenderingServer.TEXTURE_FLAG_CONVERT_TO_LINEAR:
 					csource = Image.COMPRESS_SOURCE_SRGB
 
 				image.compress(p_vram_compression, csource, p_lossy_quality)
@@ -418,7 +418,7 @@ static func _save_stex(
 
 		_:
 			return Result.new(false, "Invalid compress mode specified: {0}" \
-				.format([p_compress_mode]))
+				super.format([p_compress_mode]))
 	
 	return Result.new(true)
 

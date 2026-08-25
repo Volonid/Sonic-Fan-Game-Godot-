@@ -1,4 +1,4 @@
-tool
+@tool
 extends Control
 
 const HTerrainData = preload("../../hterrain_data.gd")
@@ -9,8 +9,8 @@ signal detail_selected(index)
 # Emitted when the tool added or removed a detail map
 signal detail_list_changed
 
-onready var _item_list = $ItemList
-onready var _confirmation_dialog = $ConfirmationDialog
+@onready var _item_list = $ItemList
+@onready var _confirmation_dialog = $ConfirmationDialog
 
 var _terrain = null
 var _dialog_target = -1
@@ -63,7 +63,7 @@ func _update_list():
 			
 			if layer_nodes_by_index.has(i):
 				# TODO How to keep names updated with node names?
-				var names = PoolStringArray(layer_nodes_by_index[i]).join(", ")
+				var names = PackedStringArray(layer_nodes_by_index[i]", ".join())
 				if len(names) == 1:
 					_item_list.set_item_tooltip(i, "Used by " + names)
 				else:

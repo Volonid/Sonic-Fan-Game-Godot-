@@ -13,16 +13,18 @@ uniform sampler2D u_terrain_splatmap;
 uniform sampler2D u_terrain_splatmap_1;
 uniform sampler2D u_terrain_splatmap_2;
 uniform sampler2D u_terrain_splatmap_3;
-uniform sampler2D u_terrain_globalmap : hint_albedo;
+uniform sampler2D u_terrain_globalmap : source_color;
 uniform mat4 u_terrain_inverse_transform;
 uniform mat3 u_terrain_normal_basis;
 
-uniform sampler2DArray u_ground_albedo_bump_array : hint_albedo;
+uniform sampler2DArray u_ground_albedo_bump_array : source_color;
+uniform sampler2DArray u_ground_normal_roughness_array;
 
 uniform float u_ground_uv_scale = 20.0;
 uniform bool u_depth_blending = true;
 uniform float u_globalmap_blend_start;
 uniform float u_globalmap_blend_distance;
+uniform bool u_tile_reduction = false;
 
 varying float v_hole;
 varying vec3 v_tint;
@@ -40,6 +42,11 @@ vec3 unpack_normal(vec4 rgba) {
 	// and OpenGL-style normal maps are Y-up.
 	n.z *= -1.0;
 	return n;
+}
+
+vec4 pack_normal(vec3 n, float a) {
+	n.z *= -1.0;
+	return vec4((n.xzy + vec3(1.0)) * 0.5, a);
 }
 
 // Blends weights according to the bump of detail textures,
@@ -152,8 +159,59 @@ void get_splat_weights(vec2 uv, out vec4 out_high_indices, out vec4 out_high_wei
 		out_high_weights.r + out_high_weights.g + out_high_weights.b + out_high_weights.a;
 }
 
+vec4 depth_blend2(vec4 a_value, float a_bump, vec4 b_value, float b_bump, float t) {
+	// https://www.gamasutra.com
+	// /blogs/AndreyMishkinis/20130716/196339/Advanced_Terrain_Texture_Splatting.php
+	float d = 0.1;
+	float ma = max(a_bump + (1.0 - t), b_bump + t) - d;
+	float ba = max(a_bump + (1.0 - t) - ma, 0.0);
+	float bb = max(b_bump + t - ma, 0.0);
+	return (a_value * ba + b_value * bb) / (ba + bb);
+}
+
+vec2 rotate(vec2 v, float cosa, float sina) {
+	return vec2(cosa * v.x - sina * v.y, sina * v.x + cosa * v.y);
+}
+
+vec4 texture_array_antitile(sampler2DArray albedo_tex, sampler2DArray normal_tex, vec3 uv,
+	out vec4 out_normal) {
+
+	float frequency = 2.0;
+	float scale = 1.3;
+	float sharpness = 0.7;
+	
+	// Rotate and scale UV
+	float rot = 3.14 * 0.6;
+	float cosa = cos(rot);
+	float sina = sin(rot);
+	vec3 uv2 = vec3(rotate(uv.xy, cosa, sina) * scale, uv.z);
+	
+	vec4 col0 = texture(albedo_tex, uv);
+	vec4 col1 = texture(albedo_tex, uv2);
+	vec4 nrm0 = texture(normal_tex, uv);
+	vec4 nrm1 = texture(normal_tex, uv2);
+	//col0 = vec4(0.0, 0.5, 0.5, 1.0); // Highlights variations
+
+	// Normals have to be rotated too since we are rotating the texture...
+	// TODO Probably not the most efficient but understandable for now
+	vec3 n = unpack_normal(nrm1);
+	// Had to negate the Y axis for some reason. I never remember the myriad of conventions around
+	n.xz = rotate(n.xz, cosa, -sina);
+	nrm1 = pack_normal(n, nrm1.a);
+	
+	// Periodically alternate between the two versions using a warped checker pattern
+	float t = 1.1 + 0.5
+		* sin(uv2.x * frequency + sin(uv.x) * 2.0) 
+		* cos(uv2.y * frequency + sin(uv.y) * 2.0); // Result in [0..2]
+	t = smoothstep(sharpness, 2.0 - sharpness, t);
+
+	// Using depth blend because classic alpha blending smoothes out details.
+	out_normal = depth_blend2(nrm0, col0.a, nrm1, col1.a, t);
+	return depth_blend2(col0, col0.a, col1, col1.a, t);
+}
+
 void vertex() {
-	vec4 wpos = WORLD_MATRIX * vec4(VERTEX, 1);
+	vec4 wpos = MODEL_MATRIX * vec4(VERTEX, 1);
 	vec2 cell_coords = (u_terrain_inverse_transform * wpos).xz;
 	// Must add a half-offset so that we sample the center of pixels,
 	// otherwise bilinear filtering of the textures will give us mixed results (#183)
@@ -167,7 +225,7 @@ void vertex() {
 	VERTEX.y = h;
 	wpos.y = h;
 
-	vec3 base_ground_uv = vec3(cell_coords.x, h * WORLD_MATRIX[1][1], cell_coords.y);
+	vec3 base_ground_uv = vec3(cell_coords.x, h * MODEL_MATRIX[1][1], cell_coords.y);
 	v_ground_uv = base_ground_uv / u_ground_uv_scale;
 
 	// Putting this in vertex saves a fetch from the fragment shader,
@@ -182,7 +240,7 @@ void vertex() {
 	// For some reason I also had to invert Z when sampling terrain normals... not sure why
 	NORMAL = u_terrain_normal_basis * unpack_normal(texture(u_terrain_normalmap, UV));
 
-	v_distance_to_camera = distance(wpos.xyz, CAMERA_MATRIX[3].xyz);
+	v_distance_to_camera = distance(wpos.xyz, INV_VIEW_MATRIX[3].xyz);
 }
 
 void fragment() {
@@ -194,6 +252,7 @@ void fragment() {
 	vec3 terrain_normal_world = 
 		u_terrain_normal_basis * (unpack_normal(texture(u_terrain_normalmap, UV)) * vec3(1,1,-1));
 	terrain_normal_world = normalize(terrain_normal_world);
+	vec3 normal = terrain_normal_world;
 
 	float globalmap_factor = clamp((v_distance_to_camera - u_globalmap_blend_start)
 		 * u_globalmap_blend_distance, 0.0, 1.0);
@@ -209,15 +268,46 @@ void fragment() {
 		vec4 high_weights;
 		get_splat_weights(UV, high_indices, high_weights);
 		
-		vec4 ab0 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.x));
-		vec4 ab1 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.y));
-		vec4 ab2 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.z));
-		vec4 ab3 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.w));
+		vec4 ab0, ab1, ab2, ab3;
+		vec4 nr0, nr1, nr2, nr3;
+				
+		if (u_tile_reduction) {
+			ab0 = texture_array_antitile(
+				u_ground_albedo_bump_array, u_ground_normal_roughness_array, 
+				vec3(v_ground_uv.xz, high_indices.x), nr0);
+			ab1 = texture_array_antitile(
+				u_ground_albedo_bump_array, u_ground_normal_roughness_array, 
+				vec3(v_ground_uv.xz, high_indices.y), nr1);
+			ab2 = texture_array_antitile(
+				u_ground_albedo_bump_array, u_ground_normal_roughness_array, 
+				vec3(v_ground_uv.xz, high_indices.z), nr2);
+			ab3 = texture_array_antitile(
+				u_ground_albedo_bump_array, u_ground_normal_roughness_array, 
+				vec3(v_ground_uv.xz, high_indices.w), nr3);
+			
+		} else {
+			ab0 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.x));
+			ab1 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.y));
+			ab2 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.z));
+			ab3 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.w));
+
+			nr0 = texture(u_ground_normal_roughness_array, vec3(v_ground_uv.xz, high_indices.x));
+			nr1 = texture(u_ground_normal_roughness_array, vec3(v_ground_uv.xz, high_indices.y));
+			nr2 = texture(u_ground_normal_roughness_array, vec3(v_ground_uv.xz, high_indices.z));
+			nr3 = texture(u_ground_normal_roughness_array, vec3(v_ground_uv.xz, high_indices.w));
+		}
 		
 		vec3 col0 = ab0.rgb * v_tint;
 		vec3 col1 = ab1.rgb * v_tint;
 		vec3 col2 = ab2.rgb * v_tint;
 		vec3 col3 = ab3.rgb * v_tint;
+
+		vec4 rough = vec4(nr0.a, nr1.a, nr2.a, nr3.a);
+
+		vec3 normal0 = unpack_normal(nr0);
+		vec3 normal1 = unpack_normal(nr1);
+		vec3 normal2 = unpack_normal(nr2);
+		vec3 normal3 = unpack_normal(nr3);
 
 		vec4 w;
 		// TODO An #ifdef macro would be nice! Or copy/paste everything in a different shader...
@@ -235,6 +325,32 @@ void fragment() {
 			w.b * col2.rgb +
 			w.a * col3.rgb) / w_sum;
 
+		ROUGHNESS = (
+			w.r * rough.r +
+			w.g * rough.g +
+			w.b * rough.b +
+			w.a * rough.a) / w_sum;
+
+		vec3 ground_normal = /*u_terrain_normal_basis **/ (
+			w.r * normal0 +
+			w.g * normal1 +
+			w.b * normal2 +
+			w.a * normal3) / w_sum;
+		// If no splat textures are defined, normal vectors will default to (1,1,1),
+		// which is incorrect, and causes the terrain to be shaded wrongly in some directions.
+		// However, this should not be a problem to fix in the shader,
+		// because there MUST be at least one splat texture set.
+		//ground_normal = normalize(ground_normal);
+		// TODO Make the plugin insert a default normalmap if it's empty
+
+		// Combine terrain normals with detail normals (not sure if correct but looks ok)
+		normal = normalize(vec3(
+			terrain_normal_world.x + ground_normal.x,
+			terrain_normal_world.y,
+			terrain_normal_world.z + ground_normal.z));
+
+		normal = mix(normal, terrain_normal_world, globalmap_factor);
+
 		ALBEDO = mix(ALBEDO, global_albedo, globalmap_factor);
 		ROUGHNESS = mix(ROUGHNESS, 1.0, globalmap_factor);
 
@@ -249,5 +365,5 @@ void fragment() {
 //		ALBEDO = vec3(1.0, 0.0, 0.0);
 //	}
 
-	NORMAL = (INV_CAMERA_MATRIX * (vec4(terrain_normal_world, 0.0))).xyz;
+	NORMAL = (VIEW_MATRIX * (vec4(normal, 0.0))).xyz;
 }

@@ -4,11 +4,11 @@ render_mode cull_disabled;
 uniform sampler2D u_terrain_heightmap;
 uniform sampler2D u_terrain_detailmap;
 uniform sampler2D u_terrain_normalmap;
-uniform sampler2D u_terrain_globalmap : hint_albedo;
+uniform sampler2D u_terrain_globalmap : source_color;
 uniform mat4 u_terrain_inverse_transform;
 uniform mat3 u_terrain_normal_basis;
 
-uniform sampler2D u_albedo_alpha : hint_albedo;
+uniform sampler2D u_albedo_alpha : source_color;
 uniform float u_view_distance = 100.0;
 uniform float u_globalmap_tint_bottom : hint_range(0.0, 1.0);
 uniform float u_globalmap_tint_top : hint_range(0.0, 1.0);
@@ -42,7 +42,7 @@ vec3 get_ambient_wind_displacement(vec2 uv, float hash) {
 }
 
 void vertex() {
-	vec4 obj_pos = WORLD_MATRIX * vec4(0, 1, 0, 1);
+	vec4 obj_pos = MODEL_MATRIX * vec4(0, 1, 0, 1);
 	vec3 cell_coords = (u_terrain_inverse_transform * obj_pos).xyz;
 	// Must add a half-offset so that we sample the center of pixels,
 	// otherwise bilinear filtering of the textures will give us mixed results (#183)
@@ -64,8 +64,8 @@ void vertex() {
 		VERTEX += get_ambient_wind_displacement(UV, hash);
 		
 		// Fade alpha with distance
-		vec3 wpos = (WORLD_MATRIX * vec4(VERTEX, 1)).xyz;
-		float dr = distance(wpos, CAMERA_MATRIX[3].xyz) / u_view_distance;
+		vec3 wpos = (MODEL_MATRIX * vec4(VERTEX, 1)).xyz;
+		float dr = distance(wpos, INV_VIEW_MATRIX[3].xyz) / u_view_distance;
 		COLOR.a = clamp(1.0 - dr * dr * dr, 0.0, 1.0);
 
 		// When using billboards, the normal is the same as the terrain regardless of face orientation
@@ -78,8 +78,8 @@ void vertex() {
 }
 
 void fragment() {
-	NORMAL = (INV_CAMERA_MATRIX * (WORLD_MATRIX * vec4(v_normal, 0.0))).xyz;
-	ALPHA_SCISSOR = 0.5;
+	NORMAL = (VIEW_MATRIX * (MODEL_MATRIX * vec4(v_normal, 0.0))).xyz;
+	ALPHA_SCISSOR_THRESHOLD = 0.5;
 	ROUGHNESS = 1.0;
 
 	vec4 col = texture(u_albedo_alpha, UV);

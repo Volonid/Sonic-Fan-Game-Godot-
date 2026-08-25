@@ -1,22 +1,22 @@
-tool
+@tool
 extends Control
 
 const Util = preload("../../util/util.gd")
 const HTerrainData = preload("../../hterrain_data.gd")
 
-const MinimapShader = preload("./minimap_normal.shader")
+const MinimapShader = preload("./minimap_normal.gdshader")
 const WhiteTexture = preload("../icons/white.png")
 
 const MODE_QUADTREE = 0
 const MODE_NORMAL = 1
 
-onready var _popup_menu = $PopupMenu
-onready var _color_rect = $ColorRect
-onready var _overlay = $Overlay
+@onready var _popup_menu = $PopupMenu
+@onready var _color_rect = $ColorRect
+@onready var _overlay = $Overlay
 
 var _terrain = null
 var _mode := MODE_NORMAL
-var _camera_transform := Transform()
+var _camera_transform := Transform3D()
 
 
 func _ready():
@@ -35,7 +35,7 @@ func set_terrain(node):
 		set_process(_terrain != null)
 
 
-func set_camera_transform(ct: Transform):
+func set_camera_transform(ct: Transform3D):
 	if _camera_transform == ct:
 		return
 	if _terrain == null:
@@ -44,10 +44,10 @@ func set_camera_transform(ct: Transform):
 	if data == null:
 		return
 	var to_local = _terrain.get_internal_transform().affine_inverse()
-	var pos := _get_xz(to_local.xform(_camera_transform.origin))
+	var pos := _get_xz(to_local * (_camera_transform.origin))
 	var size := Vector2(data.get_resolution(), data.get_resolution())
 	pos /= size
-	var dir := _get_xz(to_local.basis.xform(-_camera_transform.basis.z)).normalized()
+	var dir := _get_xz(to_local.basis * (-_camera_transform.basis.z)).normalized()
 	_overlay.set_cursor_position_normalized(pos, dir)
 	_camera_transform = ct
 
@@ -60,10 +60,10 @@ func _gui_input(event: InputEvent):
 	if event is InputEventMouseButton:
 		if event.pressed:
 			match event.button_index:
-				BUTTON_RIGHT:
-					_popup_menu.rect_position = get_global_mouse_position()
+				MOUSE_BUTTON_RIGHT:
+					_popup_menu.position = get_global_mouse_position()
 					_popup_menu.popup()
-				BUTTON_LEFT:
+				MOUSE_BUTTON_LEFT:
 					# Teleport there?
 					pass
 
@@ -81,7 +81,7 @@ func _set_mode(mode: int):
 		_color_rect.hide()
 	else:
 		var mat = ShaderMaterial.new()
-		mat.shader = MinimapShader
+		mat.gdshader = MinimapShader
 		_color_rect.material = mat
 		_color_rect.show()
 		_update_normal_material()
@@ -109,8 +109,8 @@ func _update_normal_material():
 # indicates that the editor keeps redrawing every frame,
 # which is not intented and consumes more power
 static func _set_if_changed(sm: ShaderMaterial, param: String, v):
-	if sm.get_shader_param(param) != v:
-		sm.set_shader_param(param, v)
+	if sm.get_shader_parameter(param) != v:
+		sm.set_shader_parameter(param, v)
 
 
 func _draw():
@@ -124,7 +124,7 @@ func _draw():
 			# Fit drawing to rect
 			
 			var size = 1 << (lod_count - 1)
-			var vsize = rect_size
+			var vsize = size
 			draw_set_transform(Vector2(0, 0), 0, Vector2(vsize.x / size, vsize.y / size))
 	
 			_terrain._edit_debug_draw(self)

@@ -1,4 +1,4 @@
-tool
+@tool
 extends Resource
 
 const MODE_TEXTURES = 0
@@ -120,7 +120,7 @@ func get_texture_count() -> int:
 	return len(texs)
 
 
-func get_texture(slot_index: int, ground_texture_type: int) -> Texture:
+func get_texture(slot_index: int, ground_texture_type: int) -> Texture2D:
 	if _mode != MODE_TEXTURES:
 		return null
 	var texs = _textures[ground_texture_type]
@@ -129,7 +129,7 @@ func get_texture(slot_index: int, ground_texture_type: int) -> Texture:
 	return texs[slot_index]
 
 
-func set_texture(slot_index: int, ground_texture_type: int, texture: Texture):
+func set_texture(slot_index: int, ground_texture_type: int, texture: Texture2D):
 	assert(_mode == MODE_TEXTURES)
 	var texs = _textures[ground_texture_type]
 	if texs[slot_index] != texture:
@@ -137,14 +137,14 @@ func set_texture(slot_index: int, ground_texture_type: int, texture: Texture):
 		emit_changed()
 
 
-func get_texture_array(ground_texture_type: int) -> TextureArray:
+func get_texture_array(ground_texture_type: int) -> Texture2DArray:
 	if _mode != MODE_TEXTURE_ARRAYS:
 		return null
 	var texs = _textures[ground_texture_type]
 	return texs[0]
 
 
-func set_texture_array(ground_texture_type: int, texarray: TextureArray):
+func set_texture_array(ground_texture_type: int, texarray: Texture2DArray):
 	assert(_mode == MODE_TEXTURE_ARRAYS)
 	var texs = _textures[ground_texture_type]
 	if texs[0] != texarray:

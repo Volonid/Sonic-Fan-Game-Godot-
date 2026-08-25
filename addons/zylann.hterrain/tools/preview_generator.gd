@@ -1,4 +1,4 @@
-tool
+@tool
 extends EditorResourcePreviewGenerator
 
 const HTerrainData = preload("../hterrain_data.gd")
@@ -8,7 +8,7 @@ const Logger = preload("../util/logger.gd")
 var _logger = Logger.get_for(self)
 
 
-func generate(res: Resource, size: Vector2) -> Texture:
+func generate(res: Resource, size: Vector2) -> Texture2D:
 	if res == null or not (res is HTerrainData):
 		return null
 	var normalmap = res.get_image(HTerrainData.CHANNEL_NORMAL)
@@ -17,7 +17,7 @@ func generate(res: Resource, size: Vector2) -> Texture:
 	return _generate(normalmap, size)
 
 
-func generate_from_path(path: String, size: Vector2) -> Texture:
+func _generate_from_path(path: String, size: Vector2) -> Texture2D:
 	if not path.ends_with("." + HTerrainData.META_EXTENSION):
 		return null
 	var data_dir := path.get_base_dir()
@@ -27,7 +27,7 @@ func generate_from_path(path: String, size: Vector2) -> Texture:
 	var err := normals.load(normals_path)
 	if err != OK:
 		_logger.error("Could not load '{0}', error {1}" \
-			.format([normals_path, Errors.get_message(err)]))
+			super.format([normals_path, Errors.get_message(err)]))
 		return null
 	return _generate(normals, size)
 
@@ -36,12 +36,12 @@ func handles(type: String) -> bool:
 	return type == "Resource"
 
 
-static func _generate(normals: Image, size: Vector2) -> Texture:
+static func _generate(normals: Image, size: Vector2) -> Texture2D:
 	var im := Image.new()
 	im.create(size.x, size.y, false, Image.FORMAT_RGB8)
 
-	im.lock()
-	normals.lock()
+	false # im.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
+	false # normals.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	var light_dir = Vector3(-1, -0.5, -1).normalized()
 
@@ -61,11 +61,11 @@ static func _generate(normals: Image, size: Vector2) -> Texture:
 
 			im.set_pixel(x, y, col)
 
-	im.unlock();
-	normals.unlock();
+	false # im.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed;
+	false # normals.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed;
 
 	var tex = ImageTexture.new()
-	tex.create_from_image(im, 0)
+	tex.create_from_image(im) #,0
 
 	return tex
 

@@ -1,13 +1,13 @@
-tool
+@tool
 extends Control
 
 const MAX_COUNT = 4
 
-export var max_size = 256
-export var background = Color(0, 0, 0, 0)
-export var immediate = false
+@export var max_size = 256
+@export var background = Color(0, 0, 0, 0)
+@export var immediate = false
 
-var url setget _set_url
+var url : set = _set_url
 var url_to_load
 
 var http = HTTPRequest.new()
@@ -76,7 +76,7 @@ func _start_load():
 			get_tree().set_meta("__http_image_count", count + 1)
 			break
 		else:
-			yield(get_tree(), "idle_frame")
+			await get_tree().idle_frame
 
 	_load(url_to_load)
 	url_to_load = null
@@ -85,7 +85,7 @@ func _load(url_to_load):
 	http.request(url_to_load, [], false)
 
 	busy = true
-	var data = yield(http, "request_completed")
+	var data = await http.request_completed
 
 	busy = false
 	get_tree().set_meta("__http_image_count", get_tree().get_meta("__http_image_count") - 1)

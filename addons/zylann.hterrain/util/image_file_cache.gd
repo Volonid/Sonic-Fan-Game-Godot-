@@ -36,14 +36,14 @@ func _init(cache_dir: String):
 	for i in 16:
 		_session_id += str(rng.randi() % 10)
 	_logger.debug(str("Image cache session ID: ", _session_id))
-	var dir := Directory.new()
+	var dir := DirAccess.new()
 	if not dir.dir_exists(_cache_dir):
 		var err = dir.make_dir(_cache_dir)
 		if err != OK:
 			_logger.error("Could not create directory {0}, error {1}" \
-				.format([_cache_dir, err]))
+				super.format([_cache_dir, err]))
 	_save_thread_running = true 
-	_saving_thread.start(self, "_save_thread_func")
+	_saving_thread.start(Callable(self, "_save_thread_func"))
 
 
 # TODO Cannot cleanup the cache in destructor!
@@ -138,14 +138,14 @@ func load_image(id: int) -> Image:
 	var info := _cache_image_info[id] as Dictionary
 	
 	var timeout = 5.0
-	var time_before = OS.get_ticks_msec()
+	var time_before = Time.get_ticks_msec()
 	# We could just grab `image`, because the thread only reads it.
 	# However it's still not safe to do that if we write or even lock it,
 	# so we have to assume it still has ownership of it.
 	while not info.saved:
 		OS.delay_msec(8.0)
 		_logger.debug("Waiting for cached image {0}...".format([id]))
-		if OS.get_ticks_msec() - time_before > timeout:
+		if Time.get_ticks_msec() - time_before > timeout:
 			_logger.error("Could not get image {0} from cache. Something went wrong.".format([id]))
 			return null
 	
@@ -155,7 +155,7 @@ func load_image(id: int) -> Image:
 	var err = f.open(fpath, File.READ)
 	if err != OK:
 		_logger.error("Could not load cached image from {0}, error {1}" \
-			.format([fpath, err]))
+			super.format([fpath, err]))
 		return null
 	
 	f.seek(info.data_offset)
@@ -169,14 +169,14 @@ func load_image(id: int) -> Image:
 func clear():
 	_logger.debug("Clearing image cache")
 	
-	var dir := Directory.new()
+	var dir := DirAccess.new()
 	var err := dir.open(_cache_dir)
 	if err != OK:
 		_logger.error("Could not open image file cache directory '{0}'" \
-			.format([_cache_dir]))
+			super.format([_cache_dir]))
 		return
 	
-	err = dir.list_dir_begin(true, true)
+	err = dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
 	if err != OK:
 		_logger.error("Could not start list_dir_begin in '{0}'".format([_cache_dir]))
 		return
@@ -191,7 +191,7 @@ func clear():
 			err = dir.remove(fpath)
 			if err != OK:
 				_logger.error("Failed to delete cache file '{0}'" \
-					.format([_cache_dir.plus_file(fpath)]))
+					super.format([_cache_dir.plus_file(fpath)]))
 
 	_cache_image_info.clear()
 
@@ -229,7 +229,7 @@ func _save_thread_func(_unused_userdata):
 				var err := f.open(path, File.READ_WRITE)
 				if err != OK:
 					call_deferred("_on_error", "Could not open file {0}, error {1}" \
-						.format([path, err]))
+						super.format([path, err]))
 					continue
 			
 			f.seek(item.data_offset)

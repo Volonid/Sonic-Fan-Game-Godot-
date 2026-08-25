@@ -1,5 +1,5 @@
-tool
-extends WindowDialog
+@tool
+extends Window
 
 const HTerrainData = preload("../../hterrain_data.gd")
 const Errors = preload("../../util/errors.gd")
@@ -12,12 +12,12 @@ const FORMAT_PNG8 = 2
 const FORMAT_EXRH = 3
 const FORMAT_COUNT = 4
 
-onready var _output_path_line_edit := $VB/Grid/OutputPath/HeightmapPathLineEdit as LineEdit
-onready var _format_selector := $VB/Grid/FormatSelector as OptionButton
-onready var _height_range_min_spinbox := $VB/Grid/HeightRange/HeightRangeMin as SpinBox
-onready var _height_range_max_spinbox := $VB/Grid/HeightRange/HeightRangeMax as SpinBox
-onready var _export_button := $VB/Buttons/ExportButton as Button
-onready var _show_in_explorer_checkbox := $VB/ShowInExplorerCheckbox as CheckBox
+@onready var _output_path_line_edit := $VB/Grid/OutputPath/HeightmapPathLineEdit as LineEdit
+@onready var _format_selector := $VB/Grid/FormatSelector as OptionButton
+@onready var _height_range_min_spinbox := $VB/Grid/HeightRange/HeightRangeMin as SpinBox
+@onready var _height_range_max_spinbox := $VB/Grid/HeightRange/HeightRangeMax as SpinBox
+@onready var _export_button := $VB/Buttons/ExportButton as Button
+@onready var _show_in_explorer_checkbox := $VB/ShowInExplorerCheckbox as CheckBox
 
 var _terrain = null
 var _file_dialog : EditorFileDialog = null
@@ -48,10 +48,10 @@ func _ready():
 func setup_dialogs(base_control):
 	assert(_file_dialog == null)
 	var fd := EditorFileDialog.new()
-	fd.mode = EditorFileDialog.MODE_SAVE_FILE
+	fd.mode = EditorFileDialog.FILE_MODE_SAVE_FILE
 	fd.resizable = true
 	fd.access = EditorFileDialog.ACCESS_FILESYSTEM
-	fd.connect("file_selected", self, "_on_FileDialog_file_selected")
+	fd.connect("file_selected", Callable(self, "_on_FileDialog_file_selected"))
 	base_control.add_child(fd)
 	_file_dialog = fd
 	
@@ -107,16 +107,16 @@ func _export() -> bool:
 		var im = Image.new()
 		im.create(heightmap.get_width(), heightmap.get_height(), false, Image.FORMAT_R8)
 		
-		im.lock()
-		heightmap.lock()
+		false # im.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
+		false # heightmap.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 		
 		for y in heightmap.get_height():
 			for x in heightmap.get_width():
 				var h = clamp((heightmap.get_pixel(x, y).r - height_min) * hscale, 0.0, 1.0)
 				im.set_pixel(x, y, Color(h, h, h))
 		
-		im.unlock()
-		heightmap.unlock()
+		false # im.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
+		false # heightmap.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 		
 		save_error = im.save_png(fpath)
 	
@@ -136,7 +136,7 @@ func _export() -> bool:
 		
 		elif format == FORMAT_R16:
 			var hscale = 65535.0 / (height_max - height_min)
-			heightmap.lock()
+			false # heightmap.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 			for y in heightmap.get_height():
 				for x in heightmap.get_width():
 					var h = int((heightmap.get_pixel(x, y).r - height_min) * hscale)
@@ -147,7 +147,7 @@ func _export() -> bool:
 					if x % 50 == 0:
 						_logger.debug(str(h))
 					f.store_16(h)
-			heightmap.unlock()
+			false # heightmap.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	
 		f.close()
 	
@@ -179,7 +179,7 @@ func _update_file_extension():
 
 func _print_file_error(fpath, err):
 	_logger.error("Could not save path {0}, error: {1}" \
-		.format([fpath, Errors.get_message(err)]))
+		super.format([fpath, Errors.get_message(err)]))
 
 
 func _on_CancelButton_pressed():

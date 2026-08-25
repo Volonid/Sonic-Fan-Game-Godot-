@@ -1,8 +1,8 @@
 shader_type spatial;
 
-// WIP
-// This shader uses a texture array with multiple splatmaps, allowing up to 16 textures.
-// Only the 4 textures having highest blending weight are sampled.
+// This is the reference shader of the plugin, and has the most features.
+// it should be preferred for high-end graphics cards.
+// For less features but lower-end targets, see the lite version.
 
 uniform sampler2D u_terrain_heightmap;
 uniform sampler2D u_terrain_normalmap;
@@ -10,30 +10,49 @@ uniform sampler2D u_terrain_normalmap;
 // which snowballs to black when doing GPU painting on that texture...
 uniform sampler2D u_terrain_colormap;
 uniform sampler2D u_terrain_splatmap;
-uniform sampler2D u_terrain_splatmap_1;
-uniform sampler2D u_terrain_splatmap_2;
-uniform sampler2D u_terrain_splatmap_3;
-uniform sampler2D u_terrain_globalmap : hint_albedo;
+uniform sampler2D u_terrain_globalmap : source_color;
 uniform mat4 u_terrain_inverse_transform;
 uniform mat3 u_terrain_normal_basis;
 
-uniform sampler2DArray u_ground_albedo_bump_array : hint_albedo;
-uniform sampler2DArray u_ground_normal_roughness_array;
+// the reason bump is preferred with albedo is, roughness looks better with normal maps.
+// If we want no normal mapping, roughness would only give flat mirror surfaces,
+// while bump still allows to do depth-blending for free.
+uniform sampler2D u_ground_albedo_bump_0 : source_color;
+uniform sampler2D u_ground_albedo_bump_1 : source_color;
+uniform sampler2D u_ground_albedo_bump_2 : source_color;
+uniform sampler2D u_ground_albedo_bump_3 : source_color;
 
-uniform float u_ground_uv_scale = 20.0;
+uniform sampler2D u_ground_normal_roughness_0;
+uniform sampler2D u_ground_normal_roughness_1;
+uniform sampler2D u_ground_normal_roughness_2;
+uniform sampler2D u_ground_normal_roughness_3;
+
+// Had to give this uniform a suffix, because it's declared as a simple float
+// in other shaders, and its type cannot be inferred by the plugin.
+// See https://github.com/godotengine/godot/issues/24488
+uniform vec4 u_ground_uv_scale_per_texture = vec4(20.0, 20.0, 20.0, 20.0);
+
 uniform bool u_depth_blending = true;
+uniform bool u_triplanar = false;
+// Each component corresponds to a ground texture. Set greater than zero to enable.
+uniform vec4 u_tile_reduction = vec4(0.0, 0.0, 0.0, 0.0);
+
 uniform float u_globalmap_blend_start;
 uniform float u_globalmap_blend_distance;
-uniform bool u_tile_reduction = false;
+
+uniform vec4 u_colormap_opacity_per_texture = vec4(1.0, 1.0, 1.0, 1.0);
 
 varying float v_hole;
-varying vec3 v_tint;
-varying vec2 v_terrain_uv;
-varying vec3 v_ground_uv;
+varying vec3 v_tint0;
+varying vec3 v_tint1;
+varying vec3 v_tint2;
+varying vec3 v_tint3;
+varying vec4 v_splat;
+varying vec2 v_ground_uv0;
+varying vec2 v_ground_uv1;
+varying vec2 v_ground_uv2;
+varying vec3 v_ground_uv3;
 varying float v_distance_to_camera;
-
-// TODO Can't put this in a constant: https://github.com/godotengine/godot/issues/44145
-//const int TEXTURE_COUNT = 16;
 
 
 vec3 unpack_normal(vec4 rgba) {
@@ -84,81 +103,6 @@ vec4 texture_triplanar(sampler2D tex, vec3 world_pos, vec3 blend) {
 	return xaxis * blend.x + yaxis * blend.y + zaxis * blend.z;
 }
 
-void get_splat_weights(vec2 uv, out vec4 out_high_indices, out vec4 out_high_weights) {
-	vec4 ew0 = texture(u_terrain_splatmap, uv);
-	vec4 ew1 = texture(u_terrain_splatmap_1, uv);
-	vec4 ew2 = texture(u_terrain_splatmap_2, uv);
-	vec4 ew3 = texture(u_terrain_splatmap_3, uv);
-	
-	float weights[16] = {
-		ew0.r, ew0.g, ew0.b, ew0.a,
-		ew1.r, ew1.g, ew1.b, ew1.a,
-		ew2.r, ew2.g, ew2.b, ew2.a,
-		ew3.r, ew3.g, ew3.b, ew3.a
-	};
-	
-//		float weights_sum = 0.0;
-//		for (int i = 0; i < 16; ++i) {
-//			weights_sum += weights[i];
-//		}
-//		for (int i = 0; i < 16; ++i) {
-//			weights_sum /= weights_sum;
-//		}
-//		weights_sum=1.1;
-	
-	// Now we have to pick the 4 highest weights and use them to blend textures.
-
-	// Using arrays because Godot's shader version doesn't support dynamic indexing of vectors
-	// TODO We should not need to initialize, but apparently we don't always find 4 weights
-	int high_indices_array[4] = {0, 0, 0, 0};
-	float high_weights_array[4] = {0.0, 0.0, 0.0, 0.0};
-	int count = 0;
-	// We know weights are supposed to be normalized.
-	// That means the highest value of the pivot above which we can find 4 results
-	// is 1.0 / 4.0. However that would mean exactly 4 textures have exactly that weight,
-	// which is very unlikely. If we consider 1.0 / 5.0, we are a bit more likely to find
-	// 4 results, and finding 5 results remains almost impossible.
-	float pivot = /*weights_sum*/1.0 / 5.0;
-	
-	for (int i = 0; i < 16; ++i) {
-		if (weights[i] > pivot) {
-			high_weights_array[count] = weights[i];
-			high_indices_array[count] = i;
-			weights[i] = 0.0;
-			++count;
-		}
-	}
-	
-	while (count < 4 && pivot > 0.0) {
-		float max_weight = 0.0;
-		int max_index = 0;
-		
-		for (int i = 0; i < 16; ++i) {
-			if (/*weights[i] <= pivot && */weights[i] > max_weight) {
-				max_weight = weights[i];
-				max_index = i;
-				weights[i] = 0.0;
-			}
-		}
-		
-		high_indices_array[count] = max_index;
-		high_weights_array[count] = max_weight;
-		++count;
-		pivot = max_weight;
-	}
-			
-	out_high_weights = vec4(
-		high_weights_array[0], high_weights_array[1], 
-		high_weights_array[2], high_weights_array[3]);
-	
-	out_high_indices = vec4(
-		float(high_indices_array[0]), float(high_indices_array[1]),
-		float(high_indices_array[2]), float(high_indices_array[3]));
-	
-	out_high_weights /= 
-		out_high_weights.r + out_high_weights.g + out_high_weights.b + out_high_weights.a;
-}
-
 vec4 depth_blend2(vec4 a_value, float a_bump, vec4 b_value, float b_bump, float t) {
 	// https://www.gamasutra.com
 	// /blogs/AndreyMishkinis/20130716/196339/Advanced_Terrain_Texture_Splatting.php
@@ -173,9 +117,7 @@ vec2 rotate(vec2 v, float cosa, float sina) {
 	return vec2(cosa * v.x - sina * v.y, sina * v.x + cosa * v.y);
 }
 
-vec4 texture_array_antitile(sampler2DArray albedo_tex, sampler2DArray normal_tex, vec3 uv,
-	out vec4 out_normal) {
-
+vec4 texture_antitile(sampler2D albedo_tex, sampler2D normal_tex, vec2 uv, out vec4 out_normal) {
 	float frequency = 2.0;
 	float scale = 1.3;
 	float sharpness = 0.7;
@@ -184,7 +126,7 @@ vec4 texture_array_antitile(sampler2DArray albedo_tex, sampler2DArray normal_tex
 	float rot = 3.14 * 0.6;
 	float cosa = cos(rot);
 	float sina = sin(rot);
-	vec3 uv2 = vec3(rotate(uv.xy, cosa, sina) * scale, uv.z);
+	vec2 uv2 = rotate(uv, cosa, sina) * scale;
 	
 	vec4 col0 = texture(albedo_tex, uv);
 	vec4 col1 = texture(albedo_tex, uv2);
@@ -200,8 +142,8 @@ vec4 texture_array_antitile(sampler2DArray albedo_tex, sampler2DArray normal_tex
 	nrm1 = pack_normal(n, nrm1.a);
 	
 	// Periodically alternate between the two versions using a warped checker pattern
-	float t = 1.1 + 0.5
-		* sin(uv2.x * frequency + sin(uv.x) * 2.0) 
+	float t = 1.2 + 
+		  sin(uv2.x * frequency + sin(uv.x) * 2.0) 
 		* cos(uv2.y * frequency + sin(uv.y) * 2.0); // Result in [0..2]
 	t = smoothstep(sharpness, 2.0 - sharpness, t);
 
@@ -211,7 +153,7 @@ vec4 texture_array_antitile(sampler2DArray albedo_tex, sampler2DArray normal_tex
 }
 
 void vertex() {
-	vec4 wpos = WORLD_MATRIX * vec4(VERTEX, 1);
+	vec4 wpos = MODEL_MATRIX * vec4(VERTEX, 1);
 	vec2 cell_coords = (u_terrain_inverse_transform * wpos).xz;
 	// Must add a half-offset so that we sample the center of pixels,
 	// otherwise bilinear filtering of the textures will give us mixed results (#183)
@@ -225,22 +167,28 @@ void vertex() {
 	VERTEX.y = h;
 	wpos.y = h;
 
-	vec3 base_ground_uv = vec3(cell_coords.x, h * WORLD_MATRIX[1][1], cell_coords.y);
-	v_ground_uv = base_ground_uv / u_ground_uv_scale;
+	vec3 base_ground_uv = vec3(cell_coords.x, h * MODEL_MATRIX[1][1], cell_coords.y);
+	v_ground_uv0 = base_ground_uv.xz / u_ground_uv_scale_per_texture.x;
+	v_ground_uv1 = base_ground_uv.xz / u_ground_uv_scale_per_texture.y;
+	v_ground_uv2 = base_ground_uv.xz / u_ground_uv_scale_per_texture.z;
+	v_ground_uv3 = base_ground_uv / u_ground_uv_scale_per_texture.w;
 
-	// Putting this in vertex saves a fetch from the fragment shader,
+	// Putting this in vertex saves 2 fetches from the fragment shader,
 	// which is good for performance at a negligible quality cost,
 	// provided that geometry is a regular grid that decimates with LOD.
-	// (downside is LOD will also decimate it, but it's not bad overall)
+	// (downside is LOD will also decimate tint and splat, but it's not bad overall)
 	vec4 tint = texture(u_terrain_colormap, UV);
 	v_hole = tint.a;
-	v_tint = tint.rgb;
-	
+	v_tint0 = mix(vec3(1.0), tint.rgb, u_colormap_opacity_per_texture.x);
+	v_tint1 = mix(vec3(1.0), tint.rgb, u_colormap_opacity_per_texture.y);
+	v_tint2 = mix(vec3(1.0), tint.rgb, u_colormap_opacity_per_texture.z);
+	v_tint3 = mix(vec3(1.0), tint.rgb, u_colormap_opacity_per_texture.w);
+	v_splat = texture(u_terrain_splatmap, UV);
+
 	// Need to use u_terrain_normal_basis to handle scaling.
-	// For some reason I also had to invert Z when sampling terrain normals... not sure why
 	NORMAL = u_terrain_normal_basis * unpack_normal(texture(u_terrain_normalmap, UV));
 
-	v_distance_to_camera = distance(wpos.xyz, CAMERA_MATRIX[3].xyz);
+	v_distance_to_camera = distance(wpos.xyz, INV_VIEW_MATRIX[3].xyz);
 }
 
 void fragment() {
@@ -250,12 +198,12 @@ void fragment() {
 	}
 
 	vec3 terrain_normal_world = 
-		u_terrain_normal_basis * (unpack_normal(texture(u_terrain_normalmap, UV)) * vec3(1,1,-1));
+		u_terrain_normal_basis * unpack_normal(texture(u_terrain_normalmap, UV));
 	terrain_normal_world = normalize(terrain_normal_world);
 	vec3 normal = terrain_normal_world;
 
-	float globalmap_factor = clamp((v_distance_to_camera - u_globalmap_blend_start)
-		 * u_globalmap_blend_distance, 0.0, 1.0);
+	float globalmap_factor = clamp((v_distance_to_camera - u_globalmap_blend_start) 
+		* u_globalmap_blend_distance, 0.0, 1.0);
 	globalmap_factor *= globalmap_factor; // slower start, faster transition but far away
 	vec3 global_albedo = texture(u_terrain_globalmap, UV).rgb;
 	ALBEDO = global_albedo;
@@ -264,43 +212,56 @@ void fragment() {
 	// Eventually, there could be a split between near and far shaders in the future,
 	// if relevant on high-end GPUs
 	if (globalmap_factor < 1.0) {
-		vec4 high_indices;
-		vec4 high_weights;
-		get_splat_weights(UV, high_indices, high_weights);
-		
 		vec4 ab0, ab1, ab2, ab3;
 		vec4 nr0, nr1, nr2, nr3;
-				
-		if (u_tile_reduction) {
-			ab0 = texture_array_antitile(
-				u_ground_albedo_bump_array, u_ground_normal_roughness_array, 
-				vec3(v_ground_uv.xz, high_indices.x), nr0);
-			ab1 = texture_array_antitile(
-				u_ground_albedo_bump_array, u_ground_normal_roughness_array, 
-				vec3(v_ground_uv.xz, high_indices.y), nr1);
-			ab2 = texture_array_antitile(
-				u_ground_albedo_bump_array, u_ground_normal_roughness_array, 
-				vec3(v_ground_uv.xz, high_indices.z), nr2);
-			ab3 = texture_array_antitile(
-				u_ground_albedo_bump_array, u_ground_normal_roughness_array, 
-				vec3(v_ground_uv.xz, high_indices.w), nr3);
-			
-		} else {
-			ab0 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.x));
-			ab1 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.y));
-			ab2 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.z));
-			ab3 = texture(u_ground_albedo_bump_array, vec3(v_ground_uv.xz, high_indices.w));
 
-			nr0 = texture(u_ground_normal_roughness_array, vec3(v_ground_uv.xz, high_indices.x));
-			nr1 = texture(u_ground_normal_roughness_array, vec3(v_ground_uv.xz, high_indices.y));
-			nr2 = texture(u_ground_normal_roughness_array, vec3(v_ground_uv.xz, high_indices.z));
-			nr3 = texture(u_ground_normal_roughness_array, vec3(v_ground_uv.xz, high_indices.w));
+		if (u_triplanar) {
+			// Only do triplanar on one texture slot,
+			// because otherwise it would be very expensive and cost many more ifs.
+			// I chose the last slot because first slot is the default on new splatmaps,
+			// and that's a feature used for cliffs, which are usually designed later.
+
+			vec3 blending = get_triplanar_blend(terrain_normal_world);
+
+			ab3 = texture_triplanar(u_ground_albedo_bump_3, v_ground_uv3, blending);
+			nr3 = texture_triplanar(u_ground_normal_roughness_3, v_ground_uv3, blending);
+
+		} else {
+			if (u_tile_reduction[3] > 0.0) {
+				ab3 = texture_antitile(
+					u_ground_albedo_bump_3, u_ground_normal_roughness_3, v_ground_uv3.xz, nr3);
+			} else {
+				ab3 = texture(u_ground_albedo_bump_3, v_ground_uv3.xz);
+				nr3 = texture(u_ground_normal_roughness_3, v_ground_uv3.xz);
+			}
 		}
-		
-		vec3 col0 = ab0.rgb * v_tint;
-		vec3 col1 = ab1.rgb * v_tint;
-		vec3 col2 = ab2.rgb * v_tint;
-		vec3 col3 = ab3.rgb * v_tint;
+
+		if (u_tile_reduction[0] > 0.0) {
+			ab0 = texture_antitile(
+				u_ground_albedo_bump_0, u_ground_normal_roughness_0, v_ground_uv0, nr0);
+		} else {
+			ab0 = texture(u_ground_albedo_bump_0, v_ground_uv0);
+			nr0 = texture(u_ground_normal_roughness_0, v_ground_uv0);
+		}
+		if (u_tile_reduction[1] > 0.0) {
+			ab1 = texture_antitile(
+				u_ground_albedo_bump_1, u_ground_normal_roughness_1, v_ground_uv1, nr1);
+		} else {
+			ab1 = texture(u_ground_albedo_bump_1, v_ground_uv1);
+			nr1 = texture(u_ground_normal_roughness_1, v_ground_uv1);
+		}
+		if (u_tile_reduction[2] > 0.0) {
+			ab2 = texture_antitile(
+				u_ground_albedo_bump_2, u_ground_normal_roughness_2, v_ground_uv2, nr2);
+		} else {
+			ab2 = texture(u_ground_albedo_bump_2, v_ground_uv2);
+			nr2 = texture(u_ground_normal_roughness_2, v_ground_uv2);
+		}
+
+		vec3 col0 = ab0.rgb * v_tint0;
+		vec3 col1 = ab1.rgb * v_tint1;
+		vec3 col2 = ab2.rgb * v_tint2;
+		vec3 col3 = ab3.rgb * v_tint3;
 
 		vec4 rough = vec4(nr0.a, nr1.a, nr2.a, nr3.a);
 
@@ -312,9 +273,9 @@ void fragment() {
 		vec4 w;
 		// TODO An #ifdef macro would be nice! Or copy/paste everything in a different shader...
 		if (u_depth_blending) {
-			w = get_depth_blended_weights(high_weights, vec4(ab0.a, ab1.a, ab2.a, ab3.a));
+			w = get_depth_blended_weights(v_splat, vec4(ab0.a, ab1.a, ab2.a, ab3.a));
 		} else {
-			w = high_weights;
+			w = v_splat.rgba;
 		}
 
 		float w_sum = (w.r + w.g + w.b + w.a);
@@ -354,9 +315,6 @@ void fragment() {
 		ALBEDO = mix(ALBEDO, global_albedo, globalmap_factor);
 		ROUGHNESS = mix(ROUGHNESS, 1.0, globalmap_factor);
 
-//		if(count < 3) {
-//			ALBEDO = vec3(1.0, 0.0, 0.0);
-//		}
 		// Show splatmap weights
 		//ALBEDO = w.rgb;
 	}
@@ -365,5 +323,5 @@ void fragment() {
 //		ALBEDO = vec3(1.0, 0.0, 0.0);
 //	}
 
-	NORMAL = (INV_CAMERA_MATRIX * (vec4(normal, 0.0))).xyz;
+	NORMAL = (VIEW_MATRIX * (vec4(normal, 0.0))).xyz;
 }

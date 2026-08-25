@@ -1,4 +1,4 @@
-tool
+@tool
 extends Container
 
 const SEPARATION = 2
@@ -12,7 +12,7 @@ func _notification(what: int):
 # TODO Function with ugly name to workaround a Godot 3.1 issue
 # See https://github.com/godotengine/godot/pull/38396
 func _sort_children2():
-	var max_x := rect_size.x - SEPARATION
+	var max_x := size.x - SEPARATION
 	var pos := Vector2(SEPARATION, SEPARATION)
 	var line_height := 0
 	
@@ -36,5 +36,5 @@ func _sort_children2():
 		
 		pos.x += rect.size.x + SEPARATION
 	
-	rect_min_size.y = pos.y + line_height
+	custom_minimum_size.y = pos.y + line_height
 

@@ -1,4 +1,4 @@
-tool
+@tool
 extends Control
 
 
@@ -12,10 +12,10 @@ signal detail_selected(index)
 signal detail_list_changed
 
 
-onready var _minimap = $HSplitContainer/HSplitContainer/MinimapContainer/Minimap
-onready var _brush_editor = $HSplitContainer/BrushEditor
-onready var _texture_editor = $HSplitContainer/HSplitContainer/HSplitContainer/TextureEditor
-onready var _detail_editor = $HSplitContainer/HSplitContainer/HSplitContainer/DetailEditor
+@onready var _minimap = $HSplitContainer/HSplitContainer/MinimapContainer/Minimap
+@onready var _brush_editor = $HSplitContainer/BrushEditor
+@onready var _texture_editor = $HSplitContainer/HSplitContainer/HSplitContainer/TextureEditor
+@onready var _detail_editor = $HSplitContainer/HSplitContainer/HSplitContainer/DetailEditor
 
 
 func setup_dialogs(base_control):
@@ -36,7 +36,7 @@ func set_image_cache(image_cache):
 	_detail_editor.set_image_cache(image_cache)
 
 
-func set_camera_transform(cam_transform: Transform):
+func set_camera_transform(cam_transform: Transform3D):
 	_minimap.set_camera_transform(cam_transform)
 
 

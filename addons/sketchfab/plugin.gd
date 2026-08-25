@@ -1,32 +1,32 @@
-tool
+@tool
 extends EditorPlugin
 
 const Utils = preload("res://addons/sketchfab/Utils.gd")
 
-var main = preload("res://addons/sketchfab/Main.tscn").instance()
+var main = preload("res://addons/sketchfab/Main.tscn").instantiate()
 
 func _enter_tree():
 	get_tree().set_meta("__editor_scale", _get_editor_scale())
 	get_tree().set_meta("__editor_interface", get_editor_interface())
-	get_editor_interface().get_editor_viewport().add_child(main)
+	get_editor_interface().get_editor_main_screen().add_child(main)
 	main.visible = false
 
 func _exit_tree():
-	get_editor_interface().get_editor_viewport().remove_child(main)
+	get_editor_interface().get_editor_main_screen().remove_child(main)
 
-func has_main_screen():
+func _has_main_screen():
 	return true
 
-func get_plugin_name():
+func _get_plugin_name():
 	return "Sketchfab"
 
-func get_plugin_icon():
+func _get_plugin_icon():
 	# Call _get_editor_scale() here as SceneTree is not instanced yet
 	return Utils.create_texture_from_file(
 		"res://addons/sketchfab/icon.png.noimport",
 		_get_editor_scale() / 2.0)
 
-func make_visible(visible):
+func _make_visible(visible):
 	main.visible = visible
 
 # WORKAROUND until there's access to editor scale for plugins
@@ -35,9 +35,9 @@ func _get_editor_scale():
 	var display_scale = settings.get("interface/editor/display_scale")
 
 	if display_scale == 0:
-		var screen = OS.get_current_screen()
+		var screen = get_window().get_current_screen()
 		return (2.0 if
-			OS.get_screen_dpi(screen) >= 192 && OS.get_screen_size(screen).x > 2000
+			DisplayServer.screen_get_dpi(screen) >= 192 && DisplayServer.screen_get_size(screen).x > 2000
 			else 1.0)
 	elif display_scale == 1:
 		return 0.75

@@ -1,9 +1,9 @@
+@tool
 
 # Bakes normals asynchronously in the editor as the heightmap gets modified.
 # It uses the heightmap texture to change the normalmap image, which is then uploaded like an edit.
 # This is probably not a nice method GPU-wise, but it's way faster than GDScript.
 
-tool
 extends Node
 
 const HTerrainData = preload("../hterrain_data.gd")
@@ -23,19 +23,19 @@ var _terrain_data = null
 
 func _init():
 	assert(VIEWPORT_SIZE <= HTerrainData.MIN_RESOLUTION)
-	_viewport = Viewport.new()
+	_viewport = SubViewport.new()
 	_viewport.size = Vector2(VIEWPORT_SIZE + 2, VIEWPORT_SIZE + 2)
-	_viewport.render_target_update_mode = Viewport.UPDATE_DISABLED
-	_viewport.render_target_clear_mode = Viewport.CLEAR_MODE_ALWAYS
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	_viewport.render_target_v_flip = true
 	_viewport.world = World.new()
 	_viewport.own_world = true
 	add_child(_viewport)
 	
 	var mat = ShaderMaterial.new()
-	mat.shader = load("res://addons/zylann.hterrain/tools/bump2normal_tex.shader")
+	mat.gdshader = load("res://addons/zylann.hterrain/tools/bump2normal_tex.gdshader")
 	
-	_ci = Sprite.new()
+	_ci = Sprite2D.new()
 	_ci.centered = false
 	_ci.material = mat
 	_viewport.add_child(_ci)
@@ -54,14 +54,14 @@ func set_terrain_data(data):
 	set_process(false)
 	
 	if data == null:
-		_terrain_data.disconnect("map_changed", self, "_on_terrain_data_map_changed")
-		_terrain_data.disconnect("resolution_changed", self, "_on_terrain_data_resolution_changed")
+		_terrain_data.disconnect("map_changed", Callable(self, "_on_terrain_data_map_changed"))
+		_terrain_data.disconnect("resolution_changed", Callable(self, "_on_terrain_data_resolution_changed"))
 
 	_terrain_data = data
 	
 	if _terrain_data != null:
-		_terrain_data.connect("map_changed", self, "_on_terrain_data_map_changed")
-		_terrain_data.connect("resolution_changed", self, "_on_terrain_data_resolution_changed")
+		_terrain_data.connect("map_changed", Callable(self, "_on_terrain_data_map_changed"))
+		_terrain_data.connect("resolution_changed", Callable(self, "_on_terrain_data_resolution_changed"))
 		_ci.texture = data.get_texture(HTerrainData.CHANNEL_HEIGHT)
 
 
@@ -133,7 +133,7 @@ func _process(delta):
 		# The sprite will be much larger than the viewport due to the size of the heightmap.
 		# We move it around so the part inside the viewport will correspond to the tile.
 		_ci.position = -VIEWPORT_SIZE * tpos + Vector2(1, 1)
-		_viewport.render_target_update_mode = Viewport.UPDATE_ONCE
+		_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 		_processing_tile = tpos
 		_pending_tiles_grid[tpos] = STATE_PROCESSING
 	else:

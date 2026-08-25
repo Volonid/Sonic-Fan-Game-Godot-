@@ -1,5 +1,5 @@
-tool
-extends WindowDialog
+@tool
+extends Window
 
 const HTerrainData = preload("../../hterrain_data.gd")
 const HTerrainMesher = preload("../../hterrain_mesher.gd")
@@ -13,10 +13,10 @@ const MAX_VIEWPORT_RESOLUTION = 512
 
 signal progress_notified(info) # { "progress": real, "message": string, "finished": bool }
 
-onready var _inspector_container = $VBoxContainer/Editor/Settings
-onready var _inspector = $VBoxContainer/Editor/Settings/Inspector
-onready var _preview = $VBoxContainer/Editor/Preview/TerrainPreview
-onready var _progress_bar = $VBoxContainer/Editor/Preview/ProgressBar
+@onready var _inspector_container = $VBoxContainer/Editor/Settings
+@onready var _inspector = $VBoxContainer/Editor/Settings/Inspector
+@onready var _preview = $VBoxContainer/Editor/Preview/TerrainPreview
+@onready var _progress_bar = $VBoxContainer/Editor/Preview/ProgressBar
 
 var _dummy_texture = load("res://addons/zylann.hterrain/tools/icons/empty.png")
 var _terrain = null
@@ -33,7 +33,7 @@ var _viewport_resolution := MAX_VIEWPORT_RESOLUTION
 
 static func get_shader(shader_name: String) -> Shader:
 	var path := "res://addons/zylann.hterrain/tools/generator/shaders"\
-		.plus_file(str(shader_name, ".shader"))
+		super.plus_file(str(shader_name, ".shader"))
 	return load(path) as Shader
 
 
@@ -49,31 +49,31 @@ func _ready():
 			"type": TYPE_VECTOR2
 		},
 		"base_height": { 
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"range": {"min": -500.0, "max": 500.0, "step": 0.1 },
 			"default_value": -50.0
 		},
 		"height_range": {
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"range": {"min": 0.0, "max": 2000.0, "step": 0.1 },
 			"default_value": 150.0
 		},
 		"scale": {
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"range": {"min": 1.0, "max": 1000.0, "step": 1.0},
 			"default_value": 100.0
 		},
 		"roughness": {
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"range": {"min": 0.0, "max": 1.0, "step": 0.01},
 			"default_value": 0.4
 		},
 		"curve": {
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"range": {"min": 1.0, "max": 10.0, "step": 0.1},
 			"default_value": 1.0
 		},
-		"octaves": {
+		"fractal_octaves": {
 			"type": TYPE_INT,
 			"range": {"min": 1, "max": 10, "step": 1},
 			"default_value": 6
@@ -84,12 +84,12 @@ func _ready():
 			"default_value": 0
 		},
 		"erosion_weight": {
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"range": { "min": 0.0, "max": 1.0 },
 			"default_value": 0.5
 		},
 		"erosion_slope_factor": {
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"range": { "min": 0.0, "max": 1.0 },
 			"default_value": 0.0
 		},
@@ -102,7 +102,7 @@ func _ready():
 			"default_value": false
 		},
 		"dilation": {
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"range": { "min": 0.0, "max": 1.0 },
 			"default_value": 0.0
 		},
@@ -122,15 +122,15 @@ func _ready():
 	# TODO I wonder if it's not better to let the generator shaders work in pixels
 	# instead of NDC, rather than putting a padding system there
 	_generator.set_output_padding([0, 1, 0, 1])
-	_generator.connect("output_generated", self, "_on_TextureGenerator_output_generated")
-	_generator.connect("completed", self, "_on_TextureGenerator_completed")
-	_generator.connect("progress_reported", self, "_on_TextureGenerator_progress_reported")
+	_generator.connect("output_generated", Callable(self, "_on_TextureGenerator_output_generated"))
+	_generator.connect("completed", Callable(self, "_on_TextureGenerator_completed"))
+	_generator.connect("progress_reported", Callable(self, "_on_TextureGenerator_progress_reported"))
 	add_child(_generator)
 
 
 func apply_dpi_scale(dpi_scale: float):
-	rect_min_size *= dpi_scale
-	_inspector_container.rect_min_size *= dpi_scale
+	custom_minimum_size *= dpi_scale
+	_inspector_container.custom_minimum_size *= dpi_scale
 
 
 # TEST
@@ -256,11 +256,11 @@ func _update_generator(preview: bool):
 		var progress := float(i) / len(sectors)
 		var p := TextureGenerator.Pass.new()
 		p.clear = true
-		p.shader = get_shader("perlin_noise")
+		p.gdshader = get_shader("perlin_noise")
 		# This pass generates the shapes of the terrain so will have to account for offset
 		p.tile_pos = sector
 		p.params = {
-			"u_octaves": _inspector.get_value("octaves"),
+			"u_octaves": _inspector.get_value("fractal_octaves"),
 			"u_seed": _inspector.get_value("seed"),
 			"u_scale": scale * preview_scale,
 			"u_offset": base_offset_ndc / preview_scale,
@@ -273,7 +273,7 @@ func _update_generator(preview: bool):
 
 		if erosion_iterations > 0:
 			p = TextureGenerator.Pass.new()
-			p.shader = get_shader("erode")
+			p.gdshader = get_shader("erode")
 			# TODO More erosion config
 			p.params = {
 				"u_slope_factor": _inspector.get_value("erosion_slope_factor"),
@@ -293,7 +293,7 @@ func _update_generator(preview: bool):
 		})
 
 		p = TextureGenerator.Pass.new()
-		p.shader = get_shader("bump2normal")
+		p.gdshader = get_shader("bump2normal")
 		p.padding = 1
 		_generator.add_pass(p)
 
@@ -328,7 +328,7 @@ func _on_Inspector_property_changed(key, value):
 
 
 func _on_TerrainPreview_dragged(relative, button_mask):
-	if button_mask & BUTTON_MASK_LEFT:
+	if button_mask & MOUSE_BUTTON_MASK_LEFT:
 		var offset = _inspector.get_value("offset")
 		offset += relative
 		_inspector.set_value("offset", offset)
@@ -379,7 +379,7 @@ func _on_TextureGenerator_output_generated(image: Image, info: Dictionary):
 		var tex = _generated_textures[info.maptype]
 		if tex == null:
 			tex = ImageTexture.new()
-		tex.create_from_image(image, Texture.FLAG_FILTER)
+		tex.create_from_image(image) #,Texture2D.FLAG_FILTER
 		_generated_textures[info.maptype] = tex
 
 		var num_set := 0

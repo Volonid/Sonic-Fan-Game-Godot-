@@ -1,15 +1,15 @@
-tool
+@tool
 extends PanelContainer
 # Had to use PanelContainer, because due to variable font sizes in the editor,
 # the contents of the VBoxContainer can vary in size, and so in height.
 # Which means the entire item can have variable size, not just because of DPI.
 # In such cases, the hierarchy must be made of containers that grow based on their children.
 
-onready var _texture_rect = $VB/TextureRect
-onready var _label = $VB/Label
+@onready var _texture_rect = $VB/TextureRect
+@onready var _label = $VB/Label
 
 const ColorMaterial = preload("./display_color_material.tres")
-const ColorSliceShader = preload("./display_color_slice.shader")
+const ColorSliceShader = preload("./display_color_slice.gdshader")
 const DummyTexture = preload("../icons/empty.png")
 
 
@@ -21,14 +21,14 @@ func set_text(text: String):
 
 
 func set_texture(texture: Resource, texture_layer: int):
-	if texture is TextureArray:
+	if texture is Texture2DArray:
 		var mat = _texture_rect.material
 		if mat == null or not (mat is ShaderMaterial):
 			mat = ShaderMaterial.new()
-			mat.shader = ColorSliceShader
+			mat.gdshader = ColorSliceShader
 			_texture_rect.material = mat
-		mat.set_shader_param("u_texture_array", texture)
-		mat.set_shader_param("u_index", texture_layer)
+		mat.set_shader_parameter("u_texture_array", texture)
+		mat.set_shader_parameter("u_index", texture_layer)
 		_texture_rect.texture = DummyTexture
 	else:
 		_texture_rect.texture = texture
@@ -38,7 +38,7 @@ func set_texture(texture: Resource, texture_layer: int):
 func _gui_input(event: InputEvent):
 	if event is InputEventMouseButton:
 		if event.pressed:
-			if event.button_index == BUTTON_LEFT:
+			if event.button_index == MOUSE_BUTTON_LEFT:
 				grab_focus()
 				set_selected(true, true)
 				if event.doubleclick:
@@ -67,4 +67,4 @@ func _draw():
 	else:
 		color = Color(0.0, 0.0, 0.0, 0.5)
 	# Draw background
-	draw_rect(Rect2(Vector2(), rect_size), color)
+	draw_rect(Rect2(Vector2(), size), color)

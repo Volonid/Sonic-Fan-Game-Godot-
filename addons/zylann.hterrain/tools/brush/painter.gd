@@ -1,3 +1,4 @@
+@tool
 
 # Core logic to paint a texture using shaders, with undo/redo support.
 # Operations are delayed so results are only available the next frame.
@@ -8,7 +9,6 @@
 # Example: when painting a heightmap, it would be doable to output height in R, normalmap in GB, and
 # then separate channels in two images at the end.
 
-tool
 extends Node
 
 const Logger = preload("../../util/logger.gd")
@@ -42,11 +42,11 @@ const _supported_formats = [
 	Image.FORMAT_RGBAH
 ]
 
-var _viewport : Viewport
-var _viewport_sprite : Sprite
+var _viewport : SubViewport
+var _viewport_sprite : Sprite2D
 var _brush_size := 32
 var _brush_position := Vector2()
-var _brush_texture : Texture
+var _brush_texture : Texture2D
 var _last_brush_position := Vector2()
 var _brush_material := ShaderMaterial.new()
 var _image : Image
@@ -63,18 +63,18 @@ var _logger = Logger.get_for(self)
 func _ready():
 	if Util.is_in_edited_scene(self):
 		return
-	_viewport = Viewport.new()
+	_viewport = SubViewport.new()
 	_viewport.size = Vector2(_brush_size, _brush_size)
-	_viewport.render_target_update_mode = Viewport.UPDATE_ONCE
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_viewport.render_target_v_flip = true
-	_viewport.render_target_clear_mode = Viewport.CLEAR_MODE_ONLY_NEXT_FRAME
+	_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
 	_viewport.hdr = false
 	_viewport.transparent_bg = true
 	# Apparently HDR doesn't work if this is set to 2D... so let's waste a depth buffer :/
 	#_viewport.usage = Viewport.USAGE_2D
 	#_viewport.keep_3d_linear
 	
-	_viewport_sprite = Sprite.new()
+	_viewport_sprite = Sprite2D.new()
 	_viewport_sprite.centered = false
 	_viewport_sprite.material = _brush_material
 	_viewport.add_child(_viewport_sprite)
@@ -105,23 +105,23 @@ func get_brush_size() -> int:
 	return _brush_size
 
 
-func set_brush_texture(texture: Texture):
-	_brush_material.set_shader_param(BRUSH_TEXTURE_SHADER_PARAM, texture)
+func set_brush_texture(texture: Texture2D):
+	_brush_material.set_shader_parameter(BRUSH_TEXTURE_SHADER_PARAM, texture)
 
 
 func set_brush_shader(shader: Shader):
-	if _brush_material.shader != shader:
-		_brush_material.shader = shader
+	if _brush_material.gdshader != shader:
+		_brush_material.gdshader = shader
 
 
 func set_brush_shader_param(p: String, v):
 	_modified_shader_params[p] = true
-	_brush_material.set_shader_param(p, v)
+	_brush_material.set_shader_parameter(p, v)
 
 
 func clear_brush_shader_params():
 	for key in _modified_shader_params:
-		_brush_material.set_shader_param(key, null)
+		_brush_material.set_shader_parameter(key, null)
 	_modified_shader_params.clear()
 
 
@@ -135,7 +135,7 @@ func paint_input(center_pos: Vector2):
 
 	# Need to floor the position in case the brush has an odd size
 	var brush_pos := (center_pos - Vector2(_brush_size, _brush_size) * 0.5).round()
-	_viewport.render_target_update_mode = Viewport.UPDATE_ONCE
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_viewport_sprite.position = -brush_pos
 	_brush_position = brush_pos
 	_cmd_paint = true
@@ -146,7 +146,7 @@ func paint_input(center_pos: Vector2):
 	rect.g = brush_pos.y / _texture.get_height()
 	rect.b = _brush_size / _texture.get_width()
 	rect.a = _brush_size / _texture.get_height()
-	_brush_material.set_shader_param("u_texture_rect", rect)
+	_brush_material.set_shader_parameter("u_texture_rect", rect)
 
 
 # Don't commit until this is false
@@ -185,7 +185,7 @@ func _process(delta: float):
 		
 		if src_w != 0 and src_h != 0:
 			_mark_modified_chunks(dst_x, dst_y, src_w, src_h)
-			VisualServer.texture_set_data_partial(
+			RenderingServer.texture_set_data_partial(
 				_texture.get_rid(), data, src_x, src_y, src_w, src_h, dst_x, dst_y, 0, 0)
 			emit_signal("texture_region_changed", Rect2(dst_x, dst_y, src_w, src_h))
 	
@@ -211,7 +211,7 @@ func _mark_modified_chunks(bx: int, by: int, bw: int, bh: int):
 
 
 func _commit_modified_chunks() -> Dictionary:
-	var time_before := OS.get_ticks_msec()
+	var time_before := Time.get_ticks_msec()
 	
 	var cs := UNDO_CHUNK_SIZE
 	var chunks_positions := []
@@ -246,7 +246,7 @@ func _commit_modified_chunks() -> Dictionary:
 	
 	_modified_chunks.clear()
 	
-	var time_spent := OS.get_ticks_msec() - time_before
+	var time_spent := Time.get_ticks_msec() - time_before
 	_logger.debug("Spent {0} ms to commit paint operation".format([time_spent]))
 	
 	return {

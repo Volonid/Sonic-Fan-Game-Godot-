@@ -1,7 +1,7 @@
+@tool
 
 # Slider with two handles representing an interval.
 
-tool
 extends Control
 
 const VALUE_LOW = 0
@@ -22,12 +22,12 @@ func _get_property_list():
 	return [
 		{
 			"name": "min_value",
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"usage": PROPERTY_USAGE_EDITOR
 		},
 		{
 			"name": "max_value",
-			"type": TYPE_REAL,
+			"type": TYPE_FLOAT,
 			"usage": PROPERTY_USAGE_EDITOR
 		},
 		{
@@ -134,7 +134,7 @@ func _get_closest_index(ratio: float) -> int:
 
 
 func _set_from_pixel(px: float):
-	var r := (px - FG_MARGIN) / (rect_size.x - FG_MARGIN * 2.0)
+	var r := (px - FG_MARGIN) / (size.x - FG_MARGIN * 2.0)
 	var i := _get_closest_index(r)
 	var v := _ratio_to_value(r)
 	set_value(i, v, true)
@@ -143,11 +143,11 @@ func _set_from_pixel(px: float):
 func _gui_input(event):
 	if event is InputEventMouseButton:
 		if event.pressed:
-			if event.button_index == BUTTON_LEFT:
+			if event.button_index == MOUSE_BUTTON_LEFT:
 				_grabbing = true
 				_set_from_pixel(event.position.x)
 		else:
-			if event.button_index == BUTTON_LEFT:
+			if event.button_index == MOUSE_BUTTON_LEFT:
 				_grabbing = false
 				
 	elif event is InputEventMouseMotion:
@@ -163,7 +163,7 @@ func _draw():
 	var interval_color := Color(0.4,0.4,0.4)
 	var background_color := Color(0.1, 0.1, 0.1)
 	
-	var control_rect := Rect2(Vector2(), rect_size)
+	var control_rect := Rect2(Vector2(), size)
 	
 	var bg_rect := Rect2(
 		control_rect.position.x, 

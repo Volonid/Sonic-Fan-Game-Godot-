@@ -1,4 +1,4 @@
-tool
+@tool
 
 # TODO Godot does not have an API to make custom texture importers easier.
 # So we have to re-implement the entire logic of `ResourceImporterLayeredTexture`.
@@ -50,15 +50,15 @@ static func import(
 
 	var tex_flags := 0
 	if repeat > 0:
-		tex_flags |= Texture.FLAG_REPEAT
+		tex_flags |= Texture2D.FLAG_REPEAT
 	if repeat == 2:
-		tex_flags |= Texture.FLAG_MIRRORED_REPEAT
+		tex_flags |= Texture2D.FLAG_MIRRORED_REPEAT
 	if filter:
-		tex_flags |= Texture.FLAG_FILTER
+		tex_flags |= Texture2D.FLAG_FILTER
 	if mipmaps or compress_mode == COMPRESS_VIDEO_RAM:
-		tex_flags |= Texture.FLAG_MIPMAPS
+		tex_flags |= Texture2D.FLAG_MIPMAPS
 	if srgb == 1:
-		tex_flags |= Texture.FLAG_CONVERT_TO_LINEAR
+		tex_flags |= Texture2D.FLAG_CONVERT_TO_LINEAR
 
 #	Vector<Ref<Image> > slices;
 #
@@ -122,7 +122,7 @@ static func import(
 			r_platform_variants.push_back("bptc")
 			ok_on_pc = true
 
-		if ProjectSettings.get("rendering/vram_compression/import_s3tc"):
+		if ProjectSettings.get("rendering/textures/vram_compression/import_s3tc_bptc"):
 			var result = _save_tex(
 				p_images, 
 				p_save_path + ".s3tc." + extension, 
@@ -138,7 +138,7 @@ static func import(
 			ok_on_pc = true
 			formats_imported.push_back("s3tc")
 
-		if ProjectSettings.get("rendering/vram_compression/import_etc2"):
+		if ProjectSettings.get("rendering/textures/vram_compression/import_etc2_astc"):
 			var result = _save_tex(
 				p_images, 
 				p_save_path + ".etc2." + extension, 
@@ -173,7 +173,7 @@ static func import(
 				p_images, 
 				p_save_path + ".pvrtc." + extension, 
 				compress_mode, 
-				Image.COMPRESS_PVRTC4, 
+				Image.COMPRESS_PVRTC1_4, 
 				mipmaps, 
 				tex_flags)
 
@@ -189,7 +189,7 @@ static func import(
 			return Result.new(false, 
 				"No suitable PC VRAM compression enabled in Project Settings. " +
 				"The texture {0} will not display correctly on PC.".format([p_source_path])) \
-				.with_value(ERR_INVALID_PARAMETER)
+				super.with_value(ERR_INVALID_PARAMETER)
 		
 	else:
 		#import normally
@@ -260,11 +260,11 @@ static func _save_tex(
 		
 		if image.get_format() != image_format:
 			return Result.new(false, "Layer {0} has different format, got {1}, expected {2}" \
-				.format([i, image.get_format(), image_format])).with_value(ERR_INVALID_DATA)
+				super.format([i, image.get_format(), image_format])).with_value(ERR_INVALID_DATA)
 		
 		if image.get_size() != image_size:
 			return Result.new(false, "Layer {0} has different size, got {1}, expected {2}" \
-				.format([i, image.get_size(), image_size])).with_value(ERR_INVALID_DATA)
+				super.format([i, image.get_size(), image_size])).with_value(ERR_INVALID_DATA)
 
 		# We need to operate on a copy,
 		# because the calling code can invoke the function multiple times

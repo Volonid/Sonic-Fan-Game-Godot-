@@ -2,15 +2,15 @@
 
 [ext_resource path="res://Player/Player.tscn" type="PackedScene" id=1]
 
-[node name="World" type="Spatial"]
+[node name="World" type="Node3D"]
 
 [node name="Player" parent="." instance=ExtResource( 1 )]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.534592, 7.55736, -0.881189 )
+transform = Transform3D( 1, 0, 0, 0, 1, 0, 0, 0, 1, -0.534592, 7.55736, -0.881189 )
 min_pitch = -50.0
 max_pitch = 50.0
 
-[node name="CSGBox" type="CSGBox" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 8.76942, 5.43992, -9.30245 )
+[node name="CSGBox3D" type="CSGBox3D" parent="."]
+transform = Transform3D( 1, 0, 0, 0, 1, 0, 0, 0, 1, 8.76942, 5.43992, -9.30245 )
 layers = 2
 use_collision = true
 collision_layer = 2
@@ -18,8 +18,8 @@ collision_mask = 2
 width = 29.4858
 depth = 37.3235
 
-[node name="CSGBox2" type="CSGBox" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 5.82714, 7.2395, 0.886329 )
+[node name="CSGBox2" type="CSGBox3D" parent="."]
+transform = Transform3D( 1, 0, 0, 0, 1, 0, 0, 0, 1, 5.82714, 7.2395, 0.886329 )
 layers = 2
 use_collision = true
 collision_layer = 2

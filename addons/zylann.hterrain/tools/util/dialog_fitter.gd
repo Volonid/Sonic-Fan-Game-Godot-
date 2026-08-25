@@ -1,3 +1,4 @@
+@tool
 
 # If you make a container-based UI inside a WindowDialog, there is a chance it will overflow
 # because WindowDialogs don't adjust by themselves. This happens when the user has a different
@@ -5,7 +6,6 @@
 # This script adjusts the size of the parent WindowDialog based on the first Container it finds
 # when the node becomes visible.
 
-tool
 # Needs to be a Control, otherwise we don't receive the notification...
 extends Control
 
@@ -31,4 +31,4 @@ func _fit_to_contents():
 				var margin : Vector2 = child.get_rect().position
 				#print("Fitting ", dialog.get_path(), " from ", dialog.rect_size, 
 				#	" to ", child_rect.size + margin * 2.0)
-				dialog.rect_size = child_rect.size + margin * 2.0
+				dialog.size = child_rect.size + margin * 2.0

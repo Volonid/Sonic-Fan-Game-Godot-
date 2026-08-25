@@ -1,4 +1,4 @@
-tool
+@tool
 extends Control
 
 const HTerrain = preload("../../hterrain.gd")
@@ -9,8 +9,8 @@ signal texture_selected(index)
 signal edit_pressed(index)
 signal import_pressed
 
-onready var _textures_list: TextureList = $TextureList
-onready var _buttons_container = $HBoxContainer
+@onready var _textures_list: TextureList = $TextureList
+@onready var _buttons_container = $HBoxContainer
 
 var _terrain : HTerrain = null
 var _texture_set : HTerrainTextureSet = null
@@ -45,12 +45,12 @@ func _process(delta: float):
 
 	if _texture_set != texture_set:
 		if _texture_set != null:
-			_texture_set.disconnect("changed", self, "_on_texture_set_changed")
+			_texture_set.disconnect("changed", Callable(self, "_on_texture_set_changed"))
 
 		_texture_set = texture_set
 
 		if _texture_set != null:
-			_texture_set.connect("changed", self, "_on_texture_set_changed")
+			_texture_set.connect("changed", Callable(self, "_on_texture_set_changed"))
 
 		_update_texture_list()
 

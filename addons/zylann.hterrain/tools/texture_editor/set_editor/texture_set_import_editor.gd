@@ -1,4 +1,4 @@
-tool
+@tool
 extends Control
 
 const HTerrainTextureSet = preload("../../../hterrain_texture_set.gd")
@@ -13,7 +13,7 @@ const TextureLayeredImporter = preload("../../packed_textures/texture_layered_im
 const PackedTextureImporter = preload("../../packed_textures/packed_texture_importer.gd")
 const PackedTextureArrayImporter = preload("../../packed_textures/packed_texture_array_importer.gd")
 
-const NormalMapPreviewShader = preload("../display_normal.shader")
+const NormalMapPreviewShader = preload("../display_normal.gdshader")
 
 const COMPRESS_RAW = 0
 const COMPRESS_LOSSLESS = 1
@@ -35,14 +35,14 @@ const _smart_pick_file_keywords = [
 
 signal import_finished
 
-onready var _texture_editors = [
+@onready var _texture_editors = [
 	$Import/HS/VB2/HB/Albedo,
 	$Import/HS/VB2/HB/Bump,
 	$Import/HS/VB2/HB/Normal,
 	$Import/HS/VB2/HB/Roughness
 ]
 
-onready var _slots_list = $Import/HS/VB/SlotsList
+@onready var _slots_list = $Import/HS/VB/SlotsList
 
 # TODO Some shortcuts to import options were disabled in the GUI because of Godot issues.
 # If users want to customize that, they need to do it on the files directly.
@@ -57,15 +57,15 @@ onready var _slots_list = $Import/HS/VB/SlotsList
 # Godot needs an API to import specific files and choose settings before the first import.
 const _WRITE_IMPORT_FILES = false
 
-onready var _import_mode_selector = $Import/GC/ImportModeSelector
-onready var _compression_selector = $Import/GC/CompressionSelector
-onready var _resolution_spinbox = $Import/GC/ResolutionSpinBox
-onready var _mipmaps_checkbox = $Import/GC/MipmapsCheckbox
-onready var _filter_checkbox = $Import/GC/FilterCheckBox
-onready var _add_slot_button = $Import/HS/VB/HB/AddSlotButton
-onready var _remove_slot_button = $Import/HS/VB/HB/RemoveSlotButton
-onready var _import_directory_line_edit : LineEdit = $Import/HB2/ImportDirectoryLineEdit
-onready var _normalmap_flip_checkbox = $Import/HS/VB2/HB/Normal/NormalMapFlipY
+@onready var _import_mode_selector = $Import/GC/ImportModeSelector
+@onready var _compression_selector = $Import/GC/CompressionSelector
+@onready var _resolution_spinbox = $Import/GC/ResolutionSpinBox
+@onready var _mipmaps_checkbox = $Import/GC/MipmapsCheckbox
+@onready var _filter_checkbox = $Import/GC/FilterCheckBox
+@onready var _add_slot_button = $Import/HS/VB/HB/AddSlotButton
+@onready var _remove_slot_button = $Import/HS/VB/HB/RemoveSlotButton
+@onready var _import_directory_line_edit : LineEdit = $Import/HB2/ImportDirectoryLineEdit
+@onready var _normalmap_flip_checkbox = $Import/HS/VB2/HB/Normal/NormalMapFlipY
 
 var _texture_set : HTerrainTextureSet
 var _undo_redo : UndoRedo
@@ -73,7 +73,7 @@ var _logger = Logger.get_for(self)
 
 # This is normally an `EditorFileDialog`. I can't type-hint this one properly,
 # because when I test this UI in isolation, I can't use `EditorFileDialog`.
-var _load_texture_dialog : WindowDialog
+var _load_texture_dialog : Window
 var _load_texture_type : int = -1
 var _error_popup : AcceptDialog
 var _info_popup : AcceptDialog
@@ -117,8 +117,8 @@ func _ready():
 		var ed = _texture_editors[src_type]
 		var typename = HTerrainTextureSet.get_source_texture_type_name(src_type)
 		ed.set_label(typename.capitalize())
-		ed.connect("load_pressed", self, "_on_texture_load_pressed", [src_type])
-		ed.connect("clear_pressed", self, "_on_texture_clear_pressed", [src_type])
+		ed.connect("load_pressed", Callable(self, "_on_texture_load_pressed").bind(src_type))
+		ed.connect("clear_pressed", Callable(self, "_on_texture_clear_pressed").bind(src_type))
 	
 	for import_mode in HTerrainTextureSet.MODE_COUNT:
 		var n = HTerrainTextureSet.get_import_mode_name(import_mode)
@@ -129,13 +129,13 @@ func _ready():
 		_compression_selector.add_item(n, compress_mode)
 	
 	_normalmap_material = ShaderMaterial.new()
-	_normalmap_material.shader = NormalMapPreviewShader
+	_normalmap_material.gdshader = NormalMapPreviewShader
 	_texture_editors[HTerrainTextureSet.SRC_TYPE_NORMAL].set_material(_normalmap_material)
 
 
 func setup_dialogs(parent: Node):
 	var d = EditorUtil.create_open_image_dialog()
-	d.connect("file_selected", self, "_on_LoadTextureDialog_file_selected")
+	d.connect("file_selected", Callable(self, "_on_LoadTextureDialog_file_selected"))
 	_load_texture_dialog = d
 	parent.add_child(d)
 	
@@ -150,13 +150,13 @@ func setup_dialogs(parent: Node):
 	parent.add_child(_info_popup)
 	
 	d = ConfirmationDialog.new()
-	d.connect("confirmed", self, "_on_delete_confirmation_popup_confirmed")
+	d.connect("confirmed", Callable(self, "_on_delete_confirmation_popup_confirmed"))
 	_delete_confirmation_popup = d
 	parent.add_child(_delete_confirmation_popup)
 	
 	d = EditorUtil.create_open_dir_dialog()
 	d.window_title = "Choose import directory"
-	d.connect("dir_selected", self, "_on_OpenDirDialog_dir_selected")
+	d.connect("dir_selected", Callable(self, "_on_OpenDirDialog_dir_selected"))
 	_open_dir_dialog = d
 	parent.add_child(_open_dir_dialog)
 	
@@ -212,7 +212,7 @@ func set_texture_set(texture_set: HTerrainTextureSet):
 					continue
 				
 				var import_data := _parse_json_file(texture.resource_path)
-				if import_data.empty() or not import_data.has("src"):
+				if import_data.is_empty() or not import_data.has("src"):
 					continue
 				
 				var src_types = HTerrainTextureSet.get_src_types_from_type(type)
@@ -238,7 +238,7 @@ func set_texture_set(texture_set: HTerrainTextureSet):
 				continue
 			
 			var import_data := _parse_json_file(texture_array.resource_path)
-			if import_data.empty() or not import_data.has("layers"):
+			if import_data.is_empty() or not import_data.has("layers"):
 				continue
 			
 			var layers_data = import_data["layers"]
@@ -275,7 +275,9 @@ func _parse_json_file(fpath: String) -> Dictionary:
 		return {}
 	
 	var json_text := f.get_as_text()
-	var json_result := JSON.parse(json_text)
+	var test_json_conv = JSON.new()
+	test_json_conv.parse(json_text)
+	var json_result := test_json_conv.get_data()
 	if json_result.error != OK:
 		_logger.error("Failed to parse {0}: {1}".format([fpath, json_result.error_string]))
 		return {}
@@ -289,11 +291,11 @@ func _update_ui_from_data():
 	_slots_list.clear()
 	
 	for slot_index in len(_slots_data):
-		_slots_list.add_item("Texture {0}".format([slot_index]))
+		_slots_list.add_item("Texture2D {0}".format([slot_index]))
 	
 	_resolution_spinbox.value = _import_settings.resolution
-	_mipmaps_checkbox.pressed = _import_settings.mipmaps
-	_filter_checkbox.pressed = _import_settings.filter
+	_mipmaps_checkbox.button_pressed = _import_settings.mipmaps
+	_filter_checkbox.button_pressed = _import_settings.filter
 	_set_selected_id(_compression_selector, _import_settings.compression)
 	_set_selected_id(_import_mode_selector, _import_mode)
 	
@@ -338,8 +340,8 @@ func _select_slot(slot_index: int):
 
 	_slots_list.select(slot_index)
 	
-	_normalmap_flip_checkbox.pressed = slot.flip_normalmap_y
-	_normalmap_material.set_shader_param("u_flip_y", slot.flip_normalmap_y)
+	_normalmap_flip_checkbox.button_pressed = slot.flip_normalmap_y
+	_normalmap_material.set_shader_parameter("u_flip_y", slot.flip_normalmap_y)
 
 
 func _set_ui_slot_texture_from_path(im_path: String, type: int):
@@ -360,7 +362,7 @@ func _set_ui_slot_texture_from_path(im_path: String, type: int):
 		return
 
 	var tex := ImageTexture.new()
-	tex.create_from_image(im, 0)
+	tex.create_from_image(im) #,0
 	ed.set_texture(tex)
 	ed.set_texture_tooltip(im_path)
 
@@ -452,17 +454,17 @@ func _smart_pick_files(albedo_fpath: String):
 
 
 static func _get_files_in_directory(dirpath: String, logger) -> Array:
-	var dir := Directory.new()
+	var dir := DirAccess.new()
 	var err := dir.open(dirpath)
 	if err != OK:
 		logger.error("Could not open directory {0}: {1}" \
-			.format([dirpath, Errors.get_message(err)]))
+			super.format([dirpath, Errors.get_message(err)]))
 		return []
 	
-	err = dir.list_dir_begin(true, true)
+	err = dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
 	if err != OK:
 		logger.error("Could not probe directory {0}: {1}" \
-			.format([dirpath, Errors.get_message(err)]))
+			super.format([dirpath, Errors.get_message(err)]))
 		return []
 	
 	var files := []
@@ -559,7 +561,7 @@ func _on_NormalMapFlipY_toggled(button_pressed: bool):
 	var slot_index : int = _slots_list.get_selected_items()[0]
 	var slot : Slot = _slots_data[slot_index]
 	slot.flip_normalmap_y = button_pressed
-	_normalmap_material.set_shader_param("u_flip_y", slot.flip_normalmap_y)
+	_normalmap_material.set_shader_parameter("u_flip_y", slot.flip_normalmap_y)
 
 
 # class ButtonDisabler:
@@ -600,7 +602,7 @@ func _on_ImportButton_pressed():
 		_show_error("There are no files to save.\nYou must setup at least one slot of textures.")
 		return
 	
-	var dir := Directory.new()
+	var dir := DirAccess.new()
 	for fd in files_data:
 		var dir_path : String = fd.path.get_base_dir()
 		if not dir.dir_exists(dir_path):
@@ -608,7 +610,7 @@ func _on_ImportButton_pressed():
 			return
 	
 	for fd in files_data:
-		var json := JSON.print(fd.data, "\t", true)
+		var json := JSON.stringify(fd.data, "\t", true)
 		if json == "":
 			_show_error("A problem occurred while serializing data for {0}".format([fd.path]))
 			return
@@ -654,7 +656,7 @@ func _on_ImportButton_pressed():
 	_editor_file_system.scan()
 	while _editor_file_system.is_scanning():
 		_logger.debug("Waiting for scan to complete...")
-		yield(get_tree(), "idle_frame")
+		await get_tree().idle_frame
 		if not is_inside_tree():
 			# oops?
 			return
@@ -662,7 +664,7 @@ func _on_ImportButton_pressed():
 	# Looks like import takes place AFTER scanning, so let's yield some more...
 	for fd in len(files_data) * 2:
 		_logger.debug("Yielding some more")
-		yield(get_tree(), "idle_frame")
+		await get_tree().idle_frame
 
 	var failed_resource_paths := []
 	
@@ -677,7 +679,7 @@ func _on_ImportButton_pressed():
 			if texture == null:
 				failed_resource_paths.append(fd.path)
 				continue
-			assert(texture is Texture)
+			assert(texture is Texture2D)
 			fd["texture"] = texture
 
 	else:
@@ -685,11 +687,11 @@ func _on_ImportButton_pressed():
 			var texture_array = load(fd.path)
 			if texture_array == null:
 				failed_resource_paths.append(fd.path)
-			assert(texture_array is TextureArray)
+			assert(texture_array is Texture2DArray)
 			fd["texture_array"] = texture_array
 
 	if len(failed_resource_paths) > 0:
-		var failed_list = PoolStringArray(failed_resource_paths).join("\n")
+		var failed_list = "\n".join(PackedStringArray(failed_resource_paths))
 		_show_error("Some resources failed to load:\n" + failed_list)
 
 	else:
@@ -742,7 +744,7 @@ func _generate_packed_textures_files_data(import_dir: String, prefix: String) ->
 			importer_compress_mode = StreamTextureImporter.COMPRESS_RAW
 		_:
 			return Result.new(false, "Unknown compress mode {0}, might be a bug" \
-				.format([_import_settings.compression]))
+				super.format([_import_settings.compression]))
 
 	for type in HTerrainTextureSet.TYPE_COUNT:
 		var src_types := HTerrainTextureSet.get_src_types_from_type(type)
@@ -819,7 +821,7 @@ func _generate_save_packed_texture_arrays_files_data(import_dir: String, prefix:
 			importer_compress_mode = TextureLayeredImporter.COMPRESS_RAW
 		_:
 			return Result.new(false, "Unknown compress mode {0}, might be a bug" \
-				.format([_import_settings.compression]))
+				super.format([_import_settings.compression]))
 
 	for type in HTerrainTextureSet.TYPE_COUNT:
 		var src_types := HTerrainTextureSet.get_src_types_from_type(type)

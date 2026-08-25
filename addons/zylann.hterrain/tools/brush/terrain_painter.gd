@@ -5,16 +5,16 @@ const HTerrain = preload("../../hterrain.gd")
 const HTerrainData = preload("../../hterrain_data.gd")
 const Logger = preload("../../util/logger.gd")
 
-const RaiseShader = preload("./shaders/raise.shader")
-const SmoothShader = preload("./shaders/smooth.shader")
-const LevelShader = preload("./shaders/level.shader")
-const FlattenShader = preload("./shaders/flatten.shader")
-const ErodeShader = preload("./shaders/erode.shader")
-const Splat4Shader = preload("./shaders/splat4.shader")
-const Splat16Shader = preload("./shaders/splat16.shader")
-const SplatIndexedShader = preload("./shaders/splat_indexed.shader")
-const ColorShader = preload("./shaders/color.shader")
-const AlphaShader = preload("./shaders/alpha.shader")
+const RaiseShader = preload("./shaders/raise.gdshader")
+const SmoothShader = preload("./shaders/smooth.gdshader")
+const LevelShader = preload("./shaders/level.gdshader")
+const FlattenShader = preload("./shaders/flatten.gdshader")
+const ErodeShader = preload("./shaders/erode.gdshader")
+const Splat4Shader = preload("./shaders/splat4.gdshader")
+const Splat16Shader = preload("./shaders/splat16.gdshader")
+const SplatIndexedShader = preload("./shaders/splat_indexed.gdshader")
+const ColorShader = preload("./shaders/color.gdshader")
+const AlphaShader = preload("./shaders/alpha.gdshader")
 
 const MODE_RAISE = 0
 const MODE_LOWER = 1
@@ -60,7 +60,7 @@ func _init():
 		# The name is just for debugging
 		p.set_name(str("Painter", i))
 		p.set_brush_size(_brush_size)
-		p.connect("texture_region_changed", self, "_on_painter_texture_region_changed", [i])
+		p.connect("texture_region_changed", Callable(self, "_on_painter_texture_region_changed").bind(i))
 		add_child(p)
 		_painters.append(p)
 
@@ -78,7 +78,7 @@ func set_brush_size(s: int):
 	emit_signal("changed")
 
 
-func set_brush_texture(texture: Texture):
+func set_brush_texture(texture: Texture2D):
 	for p in _painters:
 		p.set_brush_texture(texture)
 
@@ -466,7 +466,7 @@ func _paint_splat16(data: HTerrainData, position: Vector2):
 
 	for i in 4:
 		var image : Image = data.get_image(HTerrainData.CHANNEL_SPLAT, i)
-		var texture : Texture = textures[i]
+		var texture : Texture2D = textures[i]
 		
 		var mm := ModifiedMap.new()
 		mm.map_type = HTerrainData.CHANNEL_SPLAT

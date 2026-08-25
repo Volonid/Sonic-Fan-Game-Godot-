@@ -1,8 +1,8 @@
+@tool
 # Holds a viewport on which several passes may run to generate a final image.
 # Passes can have different shaders and re-use what was drawn by a previous pass.
 # TODO I'd like to make such a system working as a graph of passes for more possibilities.
 
-tool
 extends Node
 
 class Pass:
@@ -39,7 +39,7 @@ class Pass:
 		p.debug_name = debug_name
 		p.clear = clear
 		p.texture = texture
-		p.shader = shader
+		p.gdshader = shader
 		p.params = params
 		p.padding = padding
 		p.iterations = iterations
@@ -60,7 +60,7 @@ signal completed
 var _passes := []
 var _resolution := Vector2(512, 512)
 var _output_padding := [0, 0, 0, 0]
-var _viewport : Viewport = null
+var _viewport : SubViewport = null
 var _ci : TextureRect = null
 var _dummy_texture = load("res://addons/zylann.hterrain/tools/icons/empty.png")
 var _running := false
@@ -78,11 +78,11 @@ func _ready():
 	assert(_viewport == null)
 	assert(_ci == null)
 
-	_viewport = Viewport.new()
+	_viewport = SubViewport.new()
 	_viewport.own_world = true
 	_viewport.world = World.new()
 	_viewport.render_target_v_flip = true
-	_viewport.render_target_update_mode = Viewport.UPDATE_DISABLED
+	_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	add_child(_viewport)
 
 	_ci = TextureRect.new()
@@ -168,11 +168,11 @@ func run():
 #		float(largest_padding) / padded_size.x,
 #		float(largest_padding) / padded_size.y)
 
-	_ci.rect_size = padded_size
+	_ci.size = padded_size
 
 	_viewport.size = padded_size
-	_viewport.render_target_update_mode = Viewport.UPDATE_ALWAYS
-	_viewport.render_target_clear_mode = Viewport.CLEAR_MODE_ONLY_NEXT_FRAME
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
 
 	_running_pass_index = 0
 	_running_iteration = 0
@@ -202,7 +202,7 @@ func _process(delta: float):
 			_rerun = false
 			run()
 		else:
-			_viewport.render_target_update_mode = Viewport.UPDATE_DISABLED
+			_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 			set_process(false)
 			return
 	
@@ -229,16 +229,16 @@ func _setup_pass(p: Pass):
 	else:
 		_ci.texture = _dummy_texture
 
-	if p.shader != null:
+	if p.gdshader != null:
 		if _shader_material == null:
 			_shader_material = ShaderMaterial.new()
-		_shader_material.shader = p.shader
+		_shader_material.gdshader = p.gdshader
 		
 		_ci.material = _shader_material
 		
 		if p.params != null:
 			for param_name in p.params:
-				_shader_material.set_shader_param(param_name, p.params[param_name])
+				_shader_material.set_shader_parameter(param_name, p.params[param_name])
 		
 		var scale_ndc = _viewport.size / _resolution
 		var pad_offset_ndc = ((_viewport.size - _resolution) / 2) / _viewport.size
@@ -250,16 +250,16 @@ func _setup_pass(p: Pass):
 		# 	vec2 uv = (SCREEN_UV + u_uv_offset) * u_uv_scale;
 		
 		if p.params == null or not p.params.has("u_uv_scale"):
-			_shader_material.set_shader_param("u_uv_scale", scale_ndc)
+			_shader_material.set_shader_parameter("u_uv_scale", scale_ndc)
 			
 		if p.params == null or not p.params.has("u_uv_offset"):
-			_shader_material.set_shader_param("u_uv_offset", offset_ndc)
+			_shader_material.set_shader_parameter("u_uv_offset", offset_ndc)
 		
 	else:
 		_ci.material = null
 
 	if p.clear:
-		_viewport.render_target_clear_mode = Viewport.CLEAR_MODE_ONLY_NEXT_FRAME
+		_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ONCE
 
 
 func _create_output_image(metadata):

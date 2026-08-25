@@ -83,8 +83,8 @@ var _pending_paint_commit := false
 var _logger = Logger.get_for(self)
 
 
-static func get_icon(name: String) -> Texture:
-	return load("res://addons/zylann.hterrain/tools/icons/icon_" + name + ".svg") as Texture
+static func get_icon(name: String) -> Texture2D:
+	return load("res://addons/zylann.hterrain/tools/icons/icon_" + name + ".svg") as Texture2D
 
 
 func _enter_tree():
@@ -93,8 +93,8 @@ func _enter_tree():
 	var dpi_scale = EditorUtil.get_dpi_scale(get_editor_interface().get_editor_settings())
 	_logger.debug(str("DPI scale: ", dpi_scale))
 	
-	add_custom_type("HTerrain", "Spatial", HTerrain, get_icon("heightmap_node"))
-	add_custom_type("HTerrainDetailLayer", "Spatial", HTerrainDetailLayer, 
+	add_custom_type("HTerrain", "Node3D", HTerrain, get_icon("heightmap_node"))
+	add_custom_type("HTerrainDetailLayer", "Node3D", HTerrainDetailLayer, 
 		get_icon("detail_layer_node"))
 	add_custom_type("HTerrainData", "Resource", HTerrainData, get_icon("heightmap_data"))
 	# TODO Proper texture
@@ -108,7 +108,7 @@ func _enter_tree():
 	
 	_brush = Brush.new()
 	_brush.set_brush_size(5)
-	_brush.connect("changed", self, "_on_brush_changed")
+	_brush.connect("changed", Callable(self, "_on_brush_changed"))
 	add_child(_brush)
 
 	_brush_decal = BrushDecal.new()
@@ -119,7 +119,7 @@ func _enter_tree():
 	var editor_interface := get_editor_interface()
 	var base_control := editor_interface.get_base_control()
 	
-	_panel = EditPanel.instance()
+	_panel = EditPanel.instantiate()
 	Util.apply_dpi_scale(_panel, dpi_scale)
 	_panel.hide()
 	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_BOTTOM, _panel)
@@ -128,11 +128,11 @@ func _enter_tree():
 	_panel.call_deferred("setup_dialogs", base_control)
 	_panel.set_undo_redo(get_undo_redo())
 	_panel.set_image_cache(_image_cache)
-	_panel.connect("detail_selected", self, "_on_detail_selected")
-	_panel.connect("texture_selected", self, "_on_texture_selected")
-	_panel.connect("detail_list_changed", self, "_update_brush_buttons_availability")
-	_panel.connect("edit_texture_pressed", self, "_on_Panel_edit_texture_pressed")
-	_panel.connect("import_textures_pressed", self, "_on_Panel_import_textures_pressed")
+	_panel.connect("detail_selected", Callable(self, "_on_detail_selected"))
+	_panel.connect("texture_selected", Callable(self, "_on_texture_selected"))
+	_panel.connect("detail_list_changed", Callable(self, "_update_brush_buttons_availability"))
+	_panel.connect("edit_texture_pressed", Callable(self, "_on_Panel_edit_texture_pressed"))
+	_panel.connect("import_textures_pressed", Callable(self, "_on_Panel_import_textures_pressed"))
 	
 	_toolbar = HBoxContainer.new()
 	add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, _toolbar)
@@ -153,11 +153,11 @@ func _enter_tree():
 	menu.get_popup().add_separator()
 	_lookdev_menu = PopupMenu.new()
 	_lookdev_menu.name = "LookdevMenu"
-	_lookdev_menu.connect("about_to_show", self, "_on_lookdev_menu_about_to_show")
-	_lookdev_menu.connect("id_pressed", self, "_on_lookdev_menu_id_pressed")
+	_lookdev_menu.connect("about_to_popup", Callable(self, "_on_lookdev_menu_about_to_show"))
+	_lookdev_menu.connect("id_pressed", Callable(self, "_on_lookdev_menu_id_pressed"))
 	menu.get_popup().add_child(_lookdev_menu)
 	menu.get_popup().add_submenu_item("Lookdev", _lookdev_menu.name, MENU_LOOKDEV)
-	menu.get_popup().connect("id_pressed", self, "_menu_item_selected")
+	menu.get_popup().connect("id_pressed", Callable(self, "_menu_item_selected"))
 	menu.get_popup().add_separator()
 	menu.get_popup().add_item("Documentation", MENU_DOCUMENTATION)
 	menu.get_popup().add_item("About HTerrain...", MENU_ABOUT)
@@ -182,7 +182,7 @@ func _enter_tree():
 	mode_tooltips[Brush.MODE_LOWER] = "Lower height"
 	mode_tooltips[Brush.MODE_SMOOTH] = "Smooth height"
 	mode_tooltips[Brush.MODE_FLATTEN] = "Flatten (flatten to a specific height)"
-	mode_tooltips[Brush.MODE_SPLAT] = "Texture paint"
+	mode_tooltips[Brush.MODE_SPLAT] = "Texture2D paint"
 	mode_tooltips[Brush.MODE_COLOR] = "Color paint"
 	mode_tooltips[Brush.MODE_DETAIL] = "Grass paint"
 	mode_tooltips[Brush.MODE_MASK] = "Cut holes"
@@ -208,7 +208,7 @@ func _enter_tree():
 	var mode_group := ButtonGroup.new()
 	
 	for mode in ordered_brush_modes:
-		var button := ToolButton.new()
+		var button := Button.new()
 		button.icon = mode_icons[mode]
 		button.set_tooltip(mode_tooltips[mode])
 		button.set_toggle_mode(true)
@@ -217,60 +217,60 @@ func _enter_tree():
 		if mode == _brush.get_mode():
 			button.set_pressed(true)
 		
-		button.connect("pressed", self, "_on_mode_selected", [mode])
+		button.connect("pressed", Callable(self, "_on_mode_selected").bind(mode))
 		_toolbar.add_child(button)
 		
 		_toolbar_brush_buttons[mode] = button
 	
-	_generator_dialog = GeneratorDialog.instance()
-	_generator_dialog.connect("progress_notified", self, "_terrain_progress_notified")
+	_generator_dialog = GeneratorDialog.instantiate()
+	_generator_dialog.connect("progress_notified", Callable(self, "_terrain_progress_notified"))
 	_generator_dialog.set_image_cache(_image_cache)
 	_generator_dialog.set_undo_redo(get_undo_redo())
 	base_control.add_child(_generator_dialog)
 	_generator_dialog.apply_dpi_scale(dpi_scale)
 
-	_import_dialog = ImportDialog.instance()
-	_import_dialog.connect("permanent_change_performed", self, "_on_permanent_change_performed")
+	_import_dialog = ImportDialog.instantiate()
+	_import_dialog.connect("permanent_change_performed", Callable(self, "_on_permanent_change_performed"))
 	Util.apply_dpi_scale(_import_dialog, dpi_scale)
 	base_control.add_child(_import_dialog)
 
-	_progress_window = ProgressWindow.instance()
+	_progress_window = ProgressWindow.instantiate()
 	base_control.add_child(_progress_window)
 	
-	_generate_mesh_dialog = GenerateMeshDialog.instance()
+	_generate_mesh_dialog = GenerateMeshDialog.instantiate()
 	_generate_mesh_dialog.connect(
 		"generate_selected", self, "_on_GenerateMeshDialog_generate_selected")
 	Util.apply_dpi_scale(_generate_mesh_dialog, dpi_scale)
 	base_control.add_child(_generate_mesh_dialog)
 	
-	_resize_dialog = ResizeDialog.instance()
-	_resize_dialog.connect("permanent_change_performed", self, "_on_permanent_change_performed")
+	_resize_dialog = ResizeDialog.instantiate()
+	_resize_dialog.connect("permanent_change_performed", Callable(self, "_on_permanent_change_performed"))
 	Util.apply_dpi_scale(_resize_dialog, dpi_scale)
 	base_control.add_child(_resize_dialog)
 	
 	_globalmap_baker = GlobalMapBaker.new()
-	_globalmap_baker.connect("progress_notified", self, "_terrain_progress_notified")
-	_globalmap_baker.connect("permanent_change_performed", self, "_on_permanent_change_performed")
+	_globalmap_baker.connect("progress_notified", Callable(self, "_terrain_progress_notified"))
+	_globalmap_baker.connect("permanent_change_performed", Callable(self, "_on_permanent_change_performed"))
 	add_child(_globalmap_baker)
 	
-	_export_image_dialog = ExportImageDialog.instance()
+	_export_image_dialog = ExportImageDialog.instantiate()
 	Util.apply_dpi_scale(_export_image_dialog, dpi_scale)
 	base_control.add_child(_export_image_dialog)
 	# Need to call deferred because in the specific case where you start the editor
 	# with the plugin enabled, _ready won't be called at this point
 	_export_image_dialog.call_deferred("setup_dialogs", base_control)
 	
-	_about_dialog = AboutDialogScene.instance()
+	_about_dialog = AboutDialogScene.instantiate()
 	Util.apply_dpi_scale(_about_dialog, dpi_scale)
 	base_control.add_child(_about_dialog)
 
-	_texture_set_editor = TextureSetEditor.instance()
+	_texture_set_editor = TextureSetEditor.instantiate()
 	_texture_set_editor.set_undo_redo(get_undo_redo())
 	Util.apply_dpi_scale(_texture_set_editor, dpi_scale)
 	base_control.add_child(_texture_set_editor)
 	_texture_set_editor.call_deferred("setup_dialogs", base_control)
 
-	_texture_set_import_editor = TextureSetImportEditor.instance()
+	_texture_set_import_editor = TextureSetImportEditor.instantiate()
 	_texture_set_import_editor.set_undo_redo(get_undo_redo())
 	_texture_set_import_editor.set_editor_file_system(
 		get_editor_interface().get_resource_filesystem())
@@ -278,7 +278,7 @@ func _enter_tree():
 	base_control.add_child(_texture_set_import_editor)
 	_texture_set_import_editor.call_deferred("setup_dialogs", base_control)
 
-	_texture_set_editor.connect("import_selected", self, "_on_TextureSetEditor_import_selected")
+	_texture_set_editor.connect("import_selected", Callable(self, "_on_TextureSetEditor_import_selected"))
 	
 
 func _exit_tree():
@@ -350,12 +350,12 @@ func edit(object):
 	var node = _get_terrain_from_object(object)
 	
 	if _node != null:
-		_node.disconnect("tree_exited", self, "_terrain_exited_scene")
+		_node.disconnect("tree_exited", Callable(self, "_terrain_exited_scene"))
 	
 	_node = node
 	
 	if _node != null:
-		_node.connect("tree_exited", self, "_terrain_exited_scene")
+		_node.connect("tree_exited", Callable(self, "_terrain_exited_scene"))
 	
 	_update_brush_buttons_availability()
 	
@@ -378,7 +378,7 @@ func edit(object):
 
 
 static func _get_terrain_from_object(object):
-	if object != null and object is Spatial:
+	if object != null and object is Node3D:
 		if not object.is_inside_tree():
 			return null
 		if object is HTerrain:
@@ -421,7 +421,7 @@ func _update_toolbar_menu_availability():
 			popup.set_item_tooltip(i, "Terrain has no data")
 
 
-func make_visible(visible: bool):
+func _make_visible(visible: bool):
 	_panel.set_visible(visible)
 	_toolbar.set_visible(visible)
 	_brush_decal.update_visibility()
@@ -437,11 +437,11 @@ func make_visible(visible: bool):
 
 
 # TODO Can't hint return as `Vector2?` because it's nullable
-func _get_pointed_cell_position(mouse_position: Vector2, p_camera: Camera):# -> Vector2:
+func _get_pointed_cell_position(mouse_position: Vector2, p_camera: Camera3D):# -> Vector2:
 	# Need to do an extra conversion in case the editor viewport is in half-resolution mode
 	var viewport = p_camera.get_viewport()
 	var viewport_container = viewport.get_parent()
-	var screen_pos = mouse_position * viewport.size / viewport_container.rect_size
+	var screen_pos = mouse_position * viewport.size / viewport_container.size
 	
 	var origin = p_camera.project_ray_origin(screen_pos)
 	var dir = p_camera.project_ray_normal(screen_pos)
@@ -450,7 +450,7 @@ func _get_pointed_cell_position(mouse_position: Vector2, p_camera: Camera):# -> 
 	return _node.cell_raycast(origin, dir, ray_distance)
 
 
-func forward_spatial_gui_input(p_camera: Camera, p_event: InputEvent) -> bool:
+func _forward_3d_gui_input(p_camera: Camera3D, p_event: InputEvent) -> bool:
 	if _node == null || _node.get_data() == null:
 		return false
 	
@@ -462,13 +462,13 @@ func forward_spatial_gui_input(p_camera: Camera, p_event: InputEvent) -> bool:
 	if p_event is InputEventMouseButton:
 		var mb = p_event
 		
-		if mb.button_index == BUTTON_LEFT or mb.button_index == BUTTON_RIGHT:
-			if mb.pressed == false:
+		if mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT:
+			if mb.button_pressed == false:
 				_mouse_pressed = false
 
 			# Need to check modifiers before capturing the event,
 			# because they are used in navigation schemes
-			if (not mb.control) and (not mb.alt) and mb.button_index == BUTTON_LEFT:
+			if (not mb.control) and (not mb.alt) and mb.button_index == MOUSE_BUTTON_LEFT:
 				if mb.pressed:
 					_mouse_pressed = true
 				
@@ -496,7 +496,7 @@ func forward_spatial_gui_input(p_camera: Camera, p_event: InputEvent) -> bool:
 			_brush_decal.set_position(Vector3(hit_pos_in_cells.x, 0, hit_pos_in_cells.y))
 			
 			if _mouse_pressed:
-				if Input.is_mouse_button_pressed(BUTTON_LEFT):
+				if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 					_brush.paint_input(hit_pos_in_cells)
 					captured_event = true
 
@@ -530,7 +530,7 @@ func _process(delta: float):
 
 
 func _paint_completed(changes: Dictionary):
-	var time_before = OS.get_ticks_msec()
+	var time_before = Time.get_ticks_msec()
 
 	var heightmap_data = _node.get_data()
 	assert(heightmap_data != null)
@@ -609,7 +609,7 @@ func _paint_completed(changes: Dictionary):
 	ur.commit_action()
 	heightmap_data._edit_set_disable_apply_undo(false)
 	
-	var time_spent = OS.get_ticks_msec() - time_before
+	var time_spent = Time.get_ticks_msec() - time_before
 	_logger.debug(str(action_name, " | ", len(chunk_positions), " chunks | ", time_spent, " ms"))
 
 
@@ -727,7 +727,7 @@ func _on_detail_selected(index: int):
 
 
 func _select_brush_mode(mode: int):
-	_toolbar_brush_buttons[mode].pressed = true
+	_toolbar_brush_buttons[mode].button_pressed = true
 	_on_mode_selected(mode)
 
 
@@ -761,7 +761,7 @@ func _on_GenerateMeshDialog_generate_selected(lod: int):
 	var heightmap := data.get_image(HTerrainData.CHANNEL_HEIGHT)
 	var scale := _node.map_scale
 	var mesh := HTerrainMesher.make_heightmap_mesh(heightmap, lod, scale, _logger)
-	var mi := MeshInstance.new()
+	var mi := MeshInstance3D.new()
 	mi.name = str(_node.name, "_FullMesh")
 	mi.mesh = mesh
 	mi.transform = _node.transform
@@ -822,68 +822,68 @@ func _debug_spawn_collider_indicators():
 	if terrain == null:
 		return
 	
-	var test_root : Spatial
+	var test_root : Node3D
 	if not terrain.has_node("__DEBUG"):
-		test_root = Spatial.new()
+		test_root = Node3D.new()
 		test_root.name = "__DEBUG"
 		terrain.add_child(test_root)
 	else:
 		test_root = terrain.get_node("__DEBUG")
 	
-	var space_state := terrain.get_world().direct_space_state
-	var hit_material = SpatialMaterial.new()
+	var space_state := terrain.get_world_3d().direct_space_state
+	var hit_material = StandardMaterial3D.new()
 	hit_material.albedo_color = Color(0, 1, 1)
-	var cube = CubeMesh.new()
+	var cube = BoxMesh.new()
 	
 	for zi in 16:
 		for xi in 16:
 			var hit_name = str(xi, "_", zi)
 			var pos = Vector3(xi * 16, 1000, zi * 16)
 			var hit = space_state.intersect_ray(pos, pos + Vector3(0, -2000, 0))
-			var mi : MeshInstance
+			var mi : MeshInstance3D
 			if not test_root.has_node(hit_name):
-				mi = MeshInstance.new()
+				mi = MeshInstance3D.new()
 				mi.name = hit_name
 				mi.material_override = hit_material
 				mi.mesh = cube
 				test_root.add_child(mi)
 			else:
 				mi = test_root.get_node(hit_name)
-			if hit.empty():
+			if hit.is_empty():
 				mi.hide()
 			else:
 				mi.show()
-				mi.translation = hit.position
+				mi.position = hit.position
 
 
 func _spawn_vertical_bound_boxes():
 	var data = _node.get_data()
 #	var sy = data._chunked_vertical_bounds_size_y
 #	var sx = data._chunked_vertical_bounds_size_x
-	var mat = SpatialMaterial.new()
+	var mat = StandardMaterial3D.new()
 	mat.flags_transparent = true
 	mat.albedo_color = Color(1,1,1,0.2)
-	data._chunked_vertical_bounds.lock()
+	false # data._chunked_vertical_bounds.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	for cy in range(30, 60):
 		for cx in range(30, 60):
 			var vb = data._chunked_vertical_bounds.get_pixel(cx, cy)
 			var minv = vb.r
 			var maxv = vb.g
-			var mi = MeshInstance.new()
-			mi.mesh = CubeMesh.new()
+			var mi = MeshInstance3D.new()
+			mi.mesh = BoxMesh.new()
 			var cs = HTerrainData.VERTICAL_BOUNDS_CHUNK_SIZE
 			mi.mesh.size = Vector3(cs, maxv - minv, cs)
-			mi.translation = Vector3(
+			mi.position = Vector3(
 				(float(cx) + 0.5) * cs,
 				minv + mi.mesh.size.y * 0.5, 
 				(float(cy) + 0.5) * cs)
-			mi.translation *= _node.map_scale
+			mi.position *= _node.map_scale
 			mi.scale = _node.map_scale
 			mi.material_override = mat
 			_node.add_child(mi)
 			mi.owner = get_editor_interface().get_edited_scene_root()
 			
-	data._chunked_vertical_bounds.unlock()
+	false # data._chunked_vertical_bounds.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	
 #	if p_event is InputEventKey:
 #		if p_event.pressed == false:

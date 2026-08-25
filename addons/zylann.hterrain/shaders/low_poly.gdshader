@@ -6,7 +6,7 @@ uniform sampler2D u_terrain_heightmap;
 uniform sampler2D u_terrain_normalmap;
 // I had to remove `hint_albedo` from colormap because it makes sRGB conversion kick in,
 // which snowballs to black when doing GPU painting on that texture...
-uniform sampler2D u_terrain_colormap;// : hint_albedo;
+uniform sampler2D u_terrain_colormap;// : source_color;
 uniform mat4 u_terrain_inverse_transform;
 uniform mat3 u_terrain_normal_basis;
 
@@ -22,7 +22,7 @@ vec3 unpack_normal(vec4 rgba) {
 }
 
 void vertex() {
-	vec2 cell_coords = (u_terrain_inverse_transform * WORLD_MATRIX * vec4(VERTEX, 1)).xz;
+	vec2 cell_coords = (u_terrain_inverse_transform * MODEL_MATRIX * vec4(VERTEX, 1)).xz;
 	// Must add a half-offset so that we sample the center of pixels,
 	// otherwise bilinear filtering of the textures will give us mixed results (#183)
 	cell_coords += vec2(0.5);

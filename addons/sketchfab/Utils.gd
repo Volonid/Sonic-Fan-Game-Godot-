@@ -1,9 +1,9 @@
-tool
+@tool
 
 static func create_texture_from_file(path, scale = 1.0):
 	var file = File.new()
 	file.open(path, File.READ)
-	var buffer = file.get_buffer(file.get_len())
+	var buffer = file.get_buffer(file.get_length())
 	file.close()
 	var img = Image.new()
 	img.load_png_from_buffer(buffer)

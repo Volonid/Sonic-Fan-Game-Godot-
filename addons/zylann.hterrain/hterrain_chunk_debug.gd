@@ -1,4 +1,4 @@
-tool
+@tool
 extends "hterrain_chunk.gd"
 
 # I wrote this because Godot has no debug option to show AABBs.
@@ -11,14 +11,15 @@ const Util = preload("./util/util.gd")
 
 var _debug_cube = null
 var _aabb = AABB()
-var _parent_transform = Transform()
+var _parent_transform = Transform3D()
 
 
-func _init(p_parent, p_cell_x, p_cell_y, p_material).(p_parent, p_cell_x, p_cell_y, p_material):
+func _init(p_parent, p_cell_x, p_cell_y, p_material):
+	super(p_parent, p_cell_x, p_cell_y, p_material)
 	var wirecube
 	if not p_parent.has_meta("debug_wirecube_mesh"):
 		wirecube = Util.create_wirecube_mesh()
-		var mat = SpatialMaterial.new()
+		var mat = StandardMaterial3D.new()
 		mat.flags_unshaded = true
 		wirecube.surface_set_material(0, mat)
 		p_parent.set_meta("debug_wirecube_mesh", wirecube)
@@ -27,32 +28,32 @@ func _init(p_parent, p_cell_x, p_cell_y, p_material).(p_parent, p_cell_x, p_cell
 
 	_debug_cube = DirectMeshInstance.new()
 	_debug_cube.set_mesh(wirecube)
-	_debug_cube.set_world(p_parent.get_world())
+	_debug_cube.set_world(p_parent.get_world_3d())
 
 
 func enter_world(world):
-	.enter_world(world)
+	super.enter_world(world)
 	_debug_cube.enter_world(world)
 
 
 func exit_world():
-	.exit_world()
+	super.exit_world()
 	_debug_cube.exit_world()
 
 
 func parent_transform_changed(parent_transform):
-	.parent_transform_changed(parent_transform)
+	super.parent_transform_changed(parent_transform)
 	_parent_transform = parent_transform
 	_debug_cube.set_transform(_compute_aabb())
 
 
 func set_visible(visible):
-	.set_visible(visible)
+	super.set_visible(visible)
 	_debug_cube.set_visible(visible)
 
 
 func set_aabb(aabb):
-	.set_aabb(aabb)
+	super.set_aabb(aabb)
 	#aabb.position.y += 0.2*randf()
 	_aabb = aabb
 	_debug_cube.set_transform(_compute_aabb())
@@ -60,5 +61,5 @@ func set_aabb(aabb):
 
 func _compute_aabb():
 	var pos = Vector3(cell_origin_x, 0, cell_origin_y)
-	return _parent_transform * Transform(Basis().scaled(_aabb.size), pos + _aabb.position)
+	return _parent_transform * Transform3D(Basis().scaled(_aabb.size), pos + _aabb.position)
 

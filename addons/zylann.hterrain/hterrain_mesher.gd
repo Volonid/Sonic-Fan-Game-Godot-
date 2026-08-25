@@ -1,4 +1,4 @@
-tool
+@tool
 
 const Logger = preload("./util/logger.gd")
 
@@ -48,7 +48,7 @@ func get_chunk(lod: int, seams: int) -> Mesh:
 
 static func make_flat_chunk(quad_count_x: int, quad_count_y: int, stride: int, seams: int) -> Mesh:
 
-	var positions = PoolVector3Array()
+	var positions = PackedVector3Array()
 	positions.resize((quad_count_x + 1) * (quad_count_y + 1))
 
 	var i = 0
@@ -72,9 +72,9 @@ static func make_flat_chunk(quad_count_x: int, quad_count_y: int, stride: int, s
 
 # size: chunk size in quads (there are N+1 vertices)
 # seams: Bitfield for which seams are present
-static func make_indices(chunk_size_x: int, chunk_size_y: int, seams: int) -> PoolIntArray:
+static func make_indices(chunk_size_x: int, chunk_size_y: int, seams: int) -> PackedInt32Array:
 
-	var output_indices := PoolIntArray()
+	var output_indices := PackedInt32Array()
 
 	if seams != 0:
 		# LOD seams can't be made properly on uneven chunk sizes
@@ -318,10 +318,10 @@ static func make_heightmap_mesh(heightmap: Image, stride: int, scale: Vector3,
 	assert(size_x >= 2)
 	assert(size_z >= 2)
 	
-	var positions := PoolVector3Array()
+	var positions := PackedVector3Array()
 	positions.resize(size_x * size_z)
 	
-	heightmap.lock()
+	false # heightmap.lock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 
 	var i := 0
 	for mz in size_z:
@@ -332,7 +332,7 @@ static func make_heightmap_mesh(heightmap: Image, stride: int, scale: Vector3,
 			positions[i] = Vector3(x, y, z) * scale
 			i += 1
 	
-	heightmap.unlock()
+	false # heightmap.unlock() # TODOConverter3To4, Image no longer requires locking, `false` helps to not break one line if/else, so it can freely be removed
 	
 	var indices := make_indices(size_x - 1, size_z - 1, 0)
 

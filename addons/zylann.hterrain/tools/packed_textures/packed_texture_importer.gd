@@ -1,4 +1,4 @@
-tool
+@tool
 extends EditorImportPlugin
 
 const StreamTextureImporter = preload("./stream_texture_importer.gd")
@@ -8,41 +8,41 @@ const Result = preload("../util/result.gd")
 const Logger = preload("../../util/logger.gd")
 
 const IMPORTER_NAME = "hterrain_packed_texture_importer"
-const RESOURCE_TYPE = "StreamTexture"
+const RESOURCE_TYPE = "CompressedTexture2D"
 
 var _logger = Logger.get_for(self)
 
 
-func get_importer_name() -> String:
+func _get_importer_name() -> String:
 	return IMPORTER_NAME
 
 
-func get_visible_name() -> String:
+func _get_visible_name() -> String:
 	# This shows up next to "Import As:"
 	return "HTerrainPackedTexture"
 
 
-func get_recognized_extensions() -> Array:
+func _get_recognized_extensions() -> Array:
 	return ["packed_tex"]
 
 
-func get_save_extension() -> String:
+func _get_save_extension() -> String:
 	return "stex"
 
 
-func get_resource_type() -> String:
+func _get_resource_type() -> String:
 	return RESOURCE_TYPE
 
 
-func get_preset_count() -> int:
+func _get_preset_count() -> int:
 	return 1
 
 
-func get_preset_name(preset_index: int) -> String:
+func _get_preset_name(preset_index: int) -> String:
 	return ""
 
 
-func get_import_options(preset_index: int) -> Array:
+func _get_import_options(preset_index: int) -> Array:
 	return [
 		{
 			"name": "compress/mode",
@@ -67,7 +67,7 @@ func get_import_options(preset_index: int) -> Array:
 	]
 
 
-func get_option_visibility(option: String, options: Dictionary) -> bool:
+func _get_option_visibility(option: String, options: Dictionary) -> bool:
 	return true
 
 
@@ -91,16 +91,18 @@ func _import(p_source_path: String, p_save_path: String, options: Dictionary,
 	var err := f.open(p_source_path, File.READ)
 	if err != OK:
 		return Result.new(false, "Could not open file {0}: {1}" \
-			.format([p_source_path, Errors.get_message(err)])) \
-			.with_value(err)
+			super.format([p_source_path, Errors.get_message(err)])) \
+			super.with_value(err)
 	var text := f.get_as_text()
 	f.close()
 	
-	var json_result := JSON.parse(text)
+	var test_json_conv = JSON.new()
+	test_json_conv.parse(text)
+	var json_result := test_json_conv.get_data()
 	if json_result.error != OK:
 		return Result.new(false, "Failed to parse file {0}: {1}" \
-			.format([p_source_path, json_result.error_string])) \
-			.with_value(json_result.error)
+			super.format([p_source_path, json_result.error_string])) \
+			super.with_value(json_result.error)
 	var json_data : Dictionary = json_result.result
 	
 	var resolution : int = int(json_data.resolution)
@@ -112,7 +114,7 @@ func _import(p_source_path: String, p_save_path: String, options: Dictionary,
 	if not result.success:
 		return Result.new(false, 
 			"While importing {0}".format([p_source_path]), result) \
-			.with_value(result.value)
+			super.with_value(result.value)
 
 	var image : Image = result.value
 	
@@ -123,7 +125,7 @@ func _import(p_source_path: String, p_save_path: String, options: Dictionary,
 		r_platform_variants,
 		r_gen_files,
 		contains_albedo,
-		get_visible_name(),
+		_get_visible_name(),
 		options["compress/mode"],
 		options["flags/repeat"],
 		options["flags/filter"],
@@ -132,7 +134,7 @@ func _import(p_source_path: String, p_save_path: String, options: Dictionary,
 	if not result.success:
 		return Result.new(false, 
 			"While importing {0}".format([p_source_path]), result) \
-			.with_value(result.value)
+			super.with_value(result.value)
 	
 	return Result.new(true).with_value(OK)
 
