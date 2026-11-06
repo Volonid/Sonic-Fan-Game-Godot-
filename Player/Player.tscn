@@ -8,6 +8,7 @@ extents = Vector3( 0.32548, 0.599097, 0.309666 )
 
 [node name="Player" type="CharacterBody3D"]
 collision_layer = 2
+collision_mask = 3
 script = ExtResource( 1 )
 
 [node name="CameraPivot" type="Node3D" parent="."]

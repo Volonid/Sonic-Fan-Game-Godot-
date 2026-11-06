@@ -9,31 +9,11 @@
 
 config_version=5
 
-_global_script_classes=[ {
-"base": "ResourceFormatLoader",
-"class": "HTerrainDataLoader",
-"language": "GDScript",
-"path": "res://addons/zylann.hterrain/hterrain_resource_loader.gd"
-}, {
-"base": "ResourceFormatSaver",
-"class": "HTerrainDataSaver",
-"language": "GDScript",
-"path": "res://addons/zylann.hterrain/hterrain_resource_saver.gd"
-} ]
-_global_script_class_icons={
-"HTerrainDataLoader": "",
-"HTerrainDataSaver": ""
-}
-
 [application]
 
 config/name="project sonic godot"
 run/main_scene="res://scenes/World.tscn"
 config/icon="res://icon.png"
-
-[editor_plugins]
-
-enabled=PackedStringArray( "res://addons/sketchfab/plugin.cfg", "res://addons/zylann.hterrain/plugin.cfg" )
 
 [input]
 

@@ -11,7 +11,6 @@ extends CharacterBody3D
 @export var min_pitch : float = -90 # (float, -90, 0)
 @export var max_pitch : float = 90 # (float, 0, 90)
 
-var velocity : Vector3
 var y_velocity : float
 
 @onready var camera_pivot = $CameraPivot
@@ -62,7 +61,4 @@ func handle_movement(delta):
 		y_velocity = jump_power
 
 	velocity.y = y_velocity
-	set_velocity(velocity)
-	set_up_direction(Vector3.UP)
 	move_and_slide()
-	velocity = velocity
